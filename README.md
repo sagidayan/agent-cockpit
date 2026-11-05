@@ -37,7 +37,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`. Agents started with `spawn_agent` are children of the calling agent.
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `close_agent`. Agents started with `spawn_agent` are children of the calling agent. A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
 
 ## Skill
 

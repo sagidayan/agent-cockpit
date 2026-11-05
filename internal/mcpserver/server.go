@@ -41,6 +41,10 @@ func newServer() *mcp.Server {
 		Description: "Get the agent's last reported message plus the recent visible text of its terminal pane. Use after wait_for_agent to read what it did or what it is asking.",
 	}, getOutput)
 	mcp.AddTool(s, &mcp.Tool{
+		Name:        "close_agent",
+		Description: "Close a child agent you spawned, and any agents it spawned, once its work is done and reviewed. Kills its tmux pane; it cannot be undone. Only works on your own children.",
+	}, closeAgent)
+	mcp.AddTool(s, &mcp.Tool{
 		Name:        "get_diff",
 		Description: "Get uncommitted changes (staged and unstaged diff vs HEAD, plus untracked file names) in the agent's working directory. Use to review an agent's code changes after it finishes.",
 	}, getDiff)
