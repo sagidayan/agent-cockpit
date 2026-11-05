@@ -22,7 +22,8 @@ const usage = `usage: cockpit <command>
   mcp                  run the MCP server (stdio)
   version              print the cockpit version
 
-  new [--agent A] [--project P | --dir D] [--name N] [--label L] [--prompt T]
+  new [--mode M] [--agent A] [--project P | --dir D] [--url U] [--name N]
+      [--label L] [--prompt T] [--worktree]
                        start an agent, print its pane id
   list [--json]        list running agents
   send TARGET TEXT...  send a prompt (TEXT - reads stdin)

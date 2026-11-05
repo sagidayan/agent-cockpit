@@ -80,7 +80,7 @@ Commands:
 
 | Command | Action |
 |---|---|
-| `:new [agent] [project\|dir]` | start a session (no args opens the form) |
+| `:new [agent] [project\|dir]` | start a session (no args opens the wizard) |
 | `:send <text>` | send a prompt to the selected agent |
 | `:broadcast <text>` | send a prompt to every listed agent (combine with `/` to target a subset) |
 | `:stop` | interrupt the selected agent (Esc) |
