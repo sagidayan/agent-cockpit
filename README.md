@@ -65,6 +65,7 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `d` | review the agent's changes in your editor (see `:diff`) |
 | `m` | move the agent and its children into the dedicated `cockpit` tmux session (its whole window, or just the agent pane if it shares a window with the cockpit) |
 | `s` | send a prompt without leaving the list |
+| `p` | answer a permission prompt (shown when the agent needs input): see what it asks, then `y` approve once, `a` approve always (when offered) or `n` deny. Claude and OpenCode only |
 | `r` | label the agent (cockpit only, tmux window name is untouched; empty clears) |
 | `n` | start a new agent session (see below) |
 | `1`-`9` / `G` | jump to an agent / the last one |

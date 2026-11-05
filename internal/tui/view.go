@@ -269,6 +269,8 @@ func (m model) totals() string {
 func (m model) listView(height int) string {
 	box := lipgloss.NewStyle().Height(height).MaxHeight(max(height, 0))
 	switch {
+	case m.question != nil:
+		return box.Render(m.questionView())
 	case m.overlay == "help":
 		return box.Render(m.helpView())
 	case m.overlay == "projects":
@@ -500,7 +502,7 @@ func (m model) helpView() string {
 	keys := [][2]string{
 		{"j/k ↑↓", "move"}, {"pgup/dn", "move by 5"}, {"home/end", "first / last (also G)"}, {"1-9", "jump to agent"},
 		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
-		{"g", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"r", "label the agent"}, {"n", "new session"},
+		{"g", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
 		{"x", "dismiss restore"}, {"?", "this help"}, {"q", "quit"},
@@ -741,7 +743,12 @@ func totalCost(live []agents.Live) float64 {
 
 func (m model) help() string {
 	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"g", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
+	if a, ok := m.selected(); ok && canAnswer(a) {
+		keys = slices.Insert(keys, 2, [2]string{"p", "answer"})
+	}
 	switch {
+	case m.question != nil:
+		keys = m.questionKeys()
 	case m.sending:
 		keys = [][2]string{{"⏎", "send"}, {"alt+⏎", "newline"}, {"esc", "cancel"}}
 	case m.spawning:

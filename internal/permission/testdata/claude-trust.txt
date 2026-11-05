@@ -1,0 +1,9 @@
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Accessing workspace:
+
+ Quick safety check: Is this a project you created or one you trust?
+
+ ❯ 1. No, exit
+   2. Yes, I trust this folder
+
+ Enter to confirm · Esc to cancel

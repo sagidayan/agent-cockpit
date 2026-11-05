@@ -58,6 +58,7 @@ type model struct {
 	prompt         rune
 	line           textinput.Model
 	confirm        *confirmation
+	question       *question
 	overlay        string
 	projects       []projects.Project
 	blurred        bool
@@ -271,6 +272,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.confirm != nil {
 			return m.updateConfirm(msg)
 		}
+		if m.question != nil {
+			return m.updateQuestion(msg)
+		}
 		if m.overlay == "favorites" {
 			return m.updateFavorites(msg)
 		}
@@ -311,7 +315,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	_, ok := m.selected()
+	a, ok := m.selected()
 	switch msg.String() {
 	case "q", "ctrl+c":
 		return m, tea.Quit
@@ -376,6 +380,10 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 	case "n":
 		return m.openSpawn()
+	case "p":
+		if ok && canAnswer(a) {
+			return m.openQuestion()
+		}
 	}
 	return m, nil
 }

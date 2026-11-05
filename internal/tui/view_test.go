@@ -5,7 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 )
 
@@ -74,6 +77,29 @@ func TestTLDR(t *testing.T) {
 			t.Parallel()
 			if got := tldr(tc.in); got != tc.want {
 				t.Errorf("tldr(%q) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHelpAnswerHint(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name   string
+		status state.Status
+		want   bool
+	}{
+		{"needs input", state.NeedsInput, true},
+		{"working", state.Working, false},
+		{"idle", state.Idle, false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := model{width: 200, agents: []agents.Live{{Agent: state.Agent{Status: tc.status}}}}
+			if got := strings.Contains(ansi.Strip(m.help()), "p answer"); got != tc.want {
+				t.Errorf("help() shows p = %v, want %v", got, tc.want)
 			}
 		})
 	}
