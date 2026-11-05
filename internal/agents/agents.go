@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/sagidayan/agent-cockpit/internal/notify"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 	"github.com/sagidayan/agent-cockpit/internal/transcript"
@@ -34,12 +35,29 @@ func List() ([]Live, error) {
 		_ = state.Remove(pane)
 	}
 	for i := range live {
-		live[i].Agent = transcript.Settle(live[i].Agent)
+		live[i].Agent = Settle(live[i].Agent)
 		s, ok := state.LoadStats(live[i].ID)
 		live[i].Stats, live[i].HasStats = s, ok && s.Server == server
 	}
 	Sort(live)
 	return live, nil
+}
+
+func Settle(a state.Agent) state.Agent {
+	s := transcript.Settle(a)
+	if s.Status != a.Status {
+		_ = notify.Record(a.Pane, settled)
+	}
+	return s
+}
+
+func settled(prev state.Agent) (state.Agent, bool) {
+	s := transcript.Settle(prev)
+	if s.Status == prev.Status {
+		return prev, false
+	}
+	prev.Status, prev.Message, prev.Prompt = s.Status, s.Message, s.Prompt
+	return prev, true
 }
 
 func Sort(live []Live) {

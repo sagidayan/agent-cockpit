@@ -1,7 +1,12 @@
 package agents
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
@@ -88,4 +93,76 @@ func TestJoin(t *testing.T) {
 			require.Equal(t, tc.wantStale, stale)
 		})
 	}
+}
+
+func transcriptFile(t *testing.T, at time.Time, end string) string {
+	stamp := func(d time.Duration) string { return at.Add(d).UTC().Format(time.RFC3339) }
+	lines := []string{
+		fmt.Sprintf(`{"type":"user","timestamp":%q,"message":{"content":"fix the bug"}}`, stamp(0)),
+		fmt.Sprintf(`{"type":"assistant","timestamp":%q,"message":{"content":[{"type":"text","text":"Fixed it."}]}}`, stamp(time.Second)),
+	}
+	if end != "" {
+		lines = append(lines, fmt.Sprintf(end, stamp(2*time.Second)))
+	}
+	path := filepath.Join(t.TempDir(), "s.jsonl")
+	require.NoError(t, os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644))
+	return path
+}
+
+const (
+	ended       = `{"type":"system","subtype":"turn_duration","timestamp":%q}`
+	interrupted = `{"type":"user","timestamp":%q,"message":{"content":[{"type":"text","text":"[Request interrupted by user]"}]}}`
+)
+
+func TestSettled(t *testing.T) {
+	t.Parallel()
+	start := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name        string
+		status      state.Status
+		end         string
+		wantSaved   bool
+		wantStatus  state.Status
+		wantMessage string
+	}{
+		{"turn ended without hook", state.Working, ended, true, state.Done, "Fixed it."},
+		{"permission prompt answered and turn ended", state.NeedsInput, ended, true, state.Done, "Fixed it."},
+		{"interrupted", state.Working, interrupted, true, state.Idle, "Fixed it."},
+		{"still working", state.Working, "", false, state.Working, "hook"},
+		{"already done", state.Done, ended, false, state.Done, "hook"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			prev := state.Agent{Pane: "%1", Kind: "claude", Cwd: "/repo", Status: tc.status, Message: "hook", UpdatedAt: start.Add(-time.Minute), Transcript: transcriptFile(t, start, tc.end)}
+			got, saved := settled(prev)
+			require.Equal(t, tc.wantSaved, saved)
+			require.Equal(t, tc.wantStatus, got.Status)
+			require.Equal(t, tc.wantMessage, got.Message)
+			require.Equal(t, "/repo", got.Cwd)
+		})
+	}
+}
+
+func TestSettledPersistsOnce(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/sock,1,0")
+	path := transcriptFile(t, time.Now().Add(time.Minute), ended)
+	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", Status: state.Working, Transcript: path}))
+
+	prev, cur, saved, err := state.Update("%1", settled)
+	require.NoError(t, err)
+	require.True(t, saved)
+	require.Equal(t, state.Working, prev.Status)
+	require.Equal(t, state.Done, cur.Status)
+
+	stored, err := state.Load("%1")
+	require.NoError(t, err)
+	require.Equal(t, state.Done, stored.Status)
+	require.Equal(t, "Fixed it.", stored.Message)
+
+	_, _, saved, err = state.Update("%1", settled)
+	require.NoError(t, err)
+	require.False(t, saved)
 }

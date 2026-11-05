@@ -46,7 +46,7 @@ func newServer() *mcp.Server {
 	}, closeAgent)
 	mcp.AddTool(s, &mcp.Tool{
 		Name:        "get_diff",
-		Description: "Get uncommitted changes (staged and unstaged diff vs HEAD, plus untracked file names) in the agent's working directory. Use to review an agent's code changes after it finishes.",
+		Description: "Get the agent's changes in its current folder: committed work on its branch since the merge-base with the default branch, plus uncommitted and untracked changes, with a file and line summary on top. Use to review an agent's code after it finishes.",
 	}, getDiff)
 	return s
 }

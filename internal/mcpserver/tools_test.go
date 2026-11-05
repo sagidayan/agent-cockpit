@@ -33,23 +33,25 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestUntracked(t *testing.T) {
+func TestSummarize(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
 		in   string
 		want string
 	}{
-		{"none", " M a.go\n", "(none)\n"},
-		{"mixed", " M a.go\n?? b.go\n?? dir/\n", "b.go\ndir/\n"},
+		{"empty", "", "# 0 files changed, +0 -0: \n"},
+		{
+			"modified and untracked",
+			"# /repo\ndiff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/new file.txt b/new file.txt\n--- /dev/null\n+++ b/new file.txt\n@@ -0,0 +1,2 @@\n+x\n+y\n",
+			"# 2 files changed, +3 -1: a.go, new file.txt\n",
+		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if got := untracked(tc.in); got != tc.want {
-				t.Errorf("got %q, want %q", got, tc.want)
-			}
+			require.Equal(t, tc.want, summarize(tc.in))
 		})
 	}
 }

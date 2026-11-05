@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/notify"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 )
@@ -65,23 +64,18 @@ func record(kind, pane string, args []string) error {
 }
 
 func update(a state.Agent) error {
-	prev, _ := state.Load(a.Pane)
+	return notify.Record(a.Pane, func(prev state.Agent) (state.Agent, bool) {
+		return merge(prev, a), true
+	})
+}
+
+func merge(prev, a state.Agent) state.Agent {
 	if prev.Kind == a.Kind && (a.SessionID == "" || a.SessionID == prev.SessionID) {
 		a.SessionID = prev.SessionID
 		a.Prompt = cmp.Or(a.Prompt, prev.Prompt)
 		a.Transcript = cmp.Or(a.Transcript, prev.Transcript)
 	}
-	if err := state.Save(a); err != nil {
-		return err
-	}
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
-	if !notify.Wanted(cfg.Notify, prev, a) {
-		return nil
-	}
-	return notify.Send(cfg.Notify, a)
+	return a
 }
 
 func cwd(ev event) string {

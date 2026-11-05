@@ -41,6 +41,21 @@ func Wanted(cfg config.Notify, prev, cur state.Agent) bool {
 	return changed && slices.Contains(cfg.Events, cur.Status)
 }
 
+func Record(pane string, change func(prev state.Agent) (state.Agent, bool)) error {
+	prev, cur, saved, err := state.Update(pane, change)
+	if err != nil || !saved {
+		return err
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	if !Wanted(cfg.Notify, prev, cur) {
+		return nil
+	}
+	return Send(cfg.Notify, cur)
+}
+
 func Send(cfg config.Notify, a state.Agent) error {
 	clients, err := tmux.Clients()
 	if err != nil {

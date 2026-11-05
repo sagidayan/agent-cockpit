@@ -37,7 +37,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `close_agent`. Agents started with `spawn_agent` are children of the calling agent. A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Agents started with `spawn_agent` are children of the calling agent. A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
 
 ## Skill
 
@@ -215,7 +215,7 @@ width = "50%"
 max_depth = 3   # agent tree levels a master can grow (master -> sub-master -> coder); 0 = no limit
 ```
 
-Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane.
+Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane. When claude ends a turn without running its hooks in the agent's pane, cockpit picks the end up from the session transcript and notifies once.
 
 ## Releasing
 

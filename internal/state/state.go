@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
@@ -101,6 +102,35 @@ func Save(a Agent) error {
 func Load(pane string) (Agent, error) {
 	var a Agent
 	return a, read(path(pane), &a)
+}
+
+func Update(pane string, change func(prev Agent) (Agent, bool)) (prev, cur Agent, saved bool, err error) {
+	unlock, err := lock()
+	if err != nil {
+		return prev, cur, false, err
+	}
+	defer unlock()
+	prev, _ = Load(pane)
+	cur, saved = change(prev)
+	if !saved {
+		return prev, cur, false, nil
+	}
+	return prev, cur, true, Save(cur)
+}
+
+func lock() (func(), error) {
+	if err := os.MkdirAll(Dir(), 0o755); err != nil {
+		return nil, err
+	}
+	f, err := os.OpenFile(filepath.Join(Dir(), ".lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		f.Close()
+		return nil, err
+	}
+	return func() { f.Close() }, nil
 }
 
 func SaveStats(pane string, s Stats) error {

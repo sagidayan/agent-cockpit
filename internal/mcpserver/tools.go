@@ -1,17 +1,17 @@
 package mcpserver
 
 import (
+	"cmp"
 	"context"
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/gitdiff"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
-	"github.com/sagidayan/agent-cockpit/internal/transcript"
 )
 
 const (
@@ -138,7 +138,7 @@ func waitForAgent(ctx context.Context, _ *mcp.CallToolRequest, in waitArgs) (*mc
 		if l.Agent, err = state.Load(in.Pane); err != nil {
 			return nil, agentInfo{}, err
 		}
-		l.Agent = transcript.Settle(l.Agent)
+		l.Agent = agents.Settle(l.Agent)
 	}
 	return nil, toInfo(l), nil
 }
@@ -166,47 +166,38 @@ func getOutput(_ context.Context, _ *mcp.CallToolRequest, in outputArgs) (*mcp.C
 	return text(fmt.Sprintf("status: %s\n\nlast message:\n%s\n\npane output:\n%s", l.Status, l.Message, screen)), nil, nil
 }
 
-func getDiff(ctx context.Context, _ *mcp.CallToolRequest, in paneArgs) (*mcp.CallToolResult, any, error) {
+func getDiff(_ context.Context, _ *mcp.CallToolRequest, in paneArgs) (*mcp.CallToolResult, any, error) {
 	l, err := find(in.Pane)
 	if err != nil {
 		return nil, nil, err
 	}
-	dir := l.Pane.Cwd
-	stat, err := git(ctx, dir, "diff", "HEAD", "--stat")
+	dir := cmp.Or(l.Agent.Cwd, l.Pane.Cwd)
+	diff, err := gitdiff.Collect(dir)
 	if err != nil {
 		return nil, nil, err
 	}
-	diff, err := git(ctx, dir, "diff", "HEAD")
-	if err != nil {
-		return nil, nil, err
+	if diff == "" {
+		return text("no changes in " + dir), nil, nil
 	}
-	status, err := git(ctx, dir, "status", "--porcelain")
-	if err != nil {
-		return nil, nil, err
-	}
-	out := fmt.Sprintf("repo: %s\n\n%s\nuntracked files:\n%s\n%s", dir, stat, untracked(status), diff)
-	return text(truncate(out, diffLimit)), nil, nil
+	return text(truncate(summarize(diff)+diff, diffLimit)), nil, nil
 }
 
-func git(ctx context.Context, dir string, args ...string) (string, error) {
-	out, err := exec.CommandContext(ctx, "git", append([]string{"-C", dir}, args...)...).CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git %s in %s: %w: %s", strings.Join(args, " "), dir, err, out)
-	}
-	return string(out), nil
-}
-
-func untracked(porcelain string) string {
+func summarize(diff string) string {
 	var files []string
-	for line := range strings.SplitSeq(porcelain, "\n") {
-		if name, ok := strings.CutPrefix(line, "?? "); ok {
+	var added, removed int
+	for line := range strings.SplitSeq(diff, "\n") {
+		switch {
+		case strings.HasPrefix(line, "diff --git "):
+			_, name, _ := strings.Cut(line, " b/")
 			files = append(files, name)
+		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
+		case strings.HasPrefix(line, "+"):
+			added++
+		case strings.HasPrefix(line, "-"):
+			removed++
 		}
 	}
-	if len(files) == 0 {
-		return "(none)\n"
-	}
-	return strings.Join(files, "\n") + "\n"
+	return fmt.Sprintf("# %d files changed, +%d -%d: %s\n", len(files), added, removed, strings.Join(files, ", "))
 }
 
 func truncate(s string, limit int) string {
