@@ -19,12 +19,13 @@ import (
 )
 
 type spawnArgs struct {
-	Project string `json:"project,omitempty" jsonschema:"project name from list_projects (or use dir)"`
-	Dir     string `json:"dir,omitempty" jsonschema:"absolute directory to work in (or use project)"`
-	Task    string `json:"task" jsonschema:"self-contained first prompt for the agent"`
-	Agent   string `json:"agent,omitempty" jsonschema:"claude, codex or opencode (default: the project's agent, else yours)"`
-	Label   string `json:"label,omitempty" jsonschema:"short label shown in the cockpit"`
-	Mode    string `json:"mode,omitempty" jsonschema:"code (default) or master; a master coordinates its own child agents and needs no project or dir"`
+	Project  string `json:"project,omitempty" jsonschema:"project name from list_projects (or use dir)"`
+	Dir      string `json:"dir,omitempty" jsonschema:"absolute directory to work in (or use project)"`
+	Task     string `json:"task" jsonschema:"self-contained first prompt for the agent"`
+	Agent    string `json:"agent,omitempty" jsonschema:"claude, codex or opencode (default: the project's agent, else yours)"`
+	Label    string `json:"label,omitempty" jsonschema:"short label shown in the cockpit"`
+	Mode     string `json:"mode,omitempty" jsonschema:"code (default) or master; a master coordinates its own child agents and needs no project or dir"`
+	Worktree bool   `json:"worktree,omitempty" jsonschema:"code mode: work in a new git worktree on a cockpit/<label> branch from the folder's HEAD, so parallel agents in one repo don't share a checkout"`
 }
 
 type spawnResult struct {
@@ -90,11 +91,12 @@ func spawnRequest(in spawnArgs) (control.Request, error) {
 	if err != nil {
 		return control.Request{}, err
 	}
+	spec.Label, spec.Worktree = in.Label, in.Worktree
 	r, err := modes.Build(m, spec)
 	if err != nil {
 		return control.Request{}, err
 	}
-	r.Kind, r.Label, r.Parent = cmp.Or(r.Kind, callerKind(caller), "claude"), in.Label, caller
+	r.Kind, r.Parent = cmp.Or(r.Kind, callerKind(caller), "claude"), caller
 	return r, nil
 }
 

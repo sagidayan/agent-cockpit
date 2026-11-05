@@ -17,6 +17,7 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/modes"
 	"github.com/sagidayan/agent-cockpit/internal/paths"
 	"github.com/sagidayan/agent-cockpit/internal/projects"
+	"github.com/sagidayan/agent-cockpit/internal/worktree"
 )
 
 type spawnStep int
@@ -27,6 +28,7 @@ const (
 	stepProject
 	stepDir
 	stepURL
+	stepWorktree
 	stepDetails
 )
 
@@ -40,6 +42,8 @@ type spawnForm struct {
 	kindPicked bool
 	projects   []projects.Project
 	project    string
+	repo       bool
+	worktree   bool
 	filter     textinput.Model
 	dir        textinput.Model
 	url        textinput.Model
@@ -123,6 +127,9 @@ func (f spawnForm) steps() []spawnStep {
 		if f.project == "" {
 			steps = append(steps, stepDir)
 		}
+		if f.repo {
+			steps = append(steps, stepWorktree)
+		}
 	}
 	return append(steps, stepDetails)
 }
@@ -158,11 +165,14 @@ func (f spawnForm) next() (spawnForm, tea.Cmd) {
 		f.kindPicked = true
 	case stepProject:
 		f = f.applyProject(f.matches[f.pick].value)
+		f.repo = worktree.InRepo(paths.Expand(f.dir.Value()))
 	case stepDir:
-		if _, err := resolveDir(f.dir.Value()); err != nil {
+		dir, err := resolveDir(f.dir.Value())
+		if err != nil {
 			f.err = err.Error()
 			return f, nil
 		}
+		f.repo = worktree.InRepo(dir)
 	case stepURL:
 		if strings.TrimSpace(f.url.Value()) == "" {
 			f.err = "a PR URL is required"
@@ -279,6 +289,11 @@ func (f spawnForm) update(msg tea.KeyPressMsg) (spawnForm, tea.Cmd) {
 			f.kind = i
 		}
 		return f, nil
+	case stepWorktree:
+		if _, ok := move(0, 2, key); ok {
+			f.worktree = !f.worktree
+		}
+		return f, nil
 	case stepDetails:
 		if key == "tab" || key == "shift+tab" || key == "up" || key == "down" {
 			f.onName = !f.onName
@@ -365,7 +380,7 @@ func (f spawnForm) request() (control.Request, error) {
 		if err != nil {
 			return control.Request{}, err
 		}
-		spec.Dir, spec.Name = dir, cmp.Or(spec.Name, f.defaultName())
+		spec.Dir, spec.Name, spec.Worktree = dir, cmp.Or(spec.Name, f.defaultName()), f.repo && f.worktree
 	}
 	return modes.Build(m, spec)
 }

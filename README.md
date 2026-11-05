@@ -37,7 +37,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Agents started with `spawn_agent` are children of the calling agent. A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Agents started with `spawn_agent` are children of the calling agent. `spawn_agent` takes `worktree: true` to start a coding agent in its own [worktree](#worktrees). A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
 
 ## Skill
 
@@ -108,6 +108,7 @@ pane=$(cockpit new --project payments --label refunds --prompt "fix the flaky re
 cockpit new --mode review --url https://github.com/acme/payments-service/pull/42
 cockpit new --mode master --prompt "add refunds to payments and web"
 cockpit new --mode chat --prompt "what does SIGKILL (Code Signature Invalid) mean?"
+cockpit new --project payments --label refunds --worktree --prompt "..."   # own git worktree, see below
 cockpit list                      # children indented under their parent; or --json
 cockpit send refunds "also add a regression test"
 git diff | cockpit send %12 -     # - reads stdin
@@ -155,7 +156,8 @@ Favoriting or restoring a master brings back its children too.
 1. **Type**: coding, PR review, master, chat or a custom mode.
 2. **Agent**: skipped when only one agent CLI is installed.
 3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Master and chat skip this.
-4. **Details**: the first prompt (task, notes or question) and an optional name.
+4. **Worktree**: when the folder is in a git repo, choose whether the agent gets its own [worktree](#worktrees).
+5. **Details**: the first prompt (task, notes or question) and an optional name.
 
 | Key | Action |
 |---|---|
@@ -166,6 +168,20 @@ Favoriting or restoring a master brings back its children too.
 | `tab` | switch between the prompt and name on the last step |
 
 A project's configured agent is used unless you picked one in the agent step.
+
+## Worktrees
+
+A coding agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
+
+The worktree is created at `<repo>-worktrees/<slug>` next to the main checkout, on a new `cockpit/<slug>` branch from the chosen folder's current HEAD. The slug comes from the label, else the session name, else the folder name. If the folder or branch already exists, `-2`, `-3`, ... is appended.
+
+`kill` leaves worktrees and branches alone since they may hold unmerged work. Clean up by hand once merged:
+
+```sh
+git worktree list
+git worktree remove ../payments-service-worktrees/refunds
+git branch -d cockpit/refunds   # -D if it was never merged
+```
 
 ## Restore
 

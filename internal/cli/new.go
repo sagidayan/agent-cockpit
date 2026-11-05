@@ -65,7 +65,7 @@ func installed() []string {
 
 func request(args []string, list []projects.Project, all []config.Mode, cwd string, installed []string) (control.Request, error) {
 	var s modes.Spec
-	var project, mode, label string
+	var project, mode string
 	fs := flag.NewFlagSet("new", flag.ContinueOnError)
 	fs.StringVar(&s.Kind, "agent", "", "")
 	fs.StringVar(&mode, "mode", modes.Code, "")
@@ -73,8 +73,9 @@ func request(args []string, list []projects.Project, all []config.Mode, cwd stri
 	fs.StringVar(&project, "project", "", "")
 	fs.StringVar(&s.Dir, "dir", "", "")
 	fs.StringVar(&s.Name, "name", "", "")
-	fs.StringVar(&label, "label", "", "")
+	fs.StringVar(&s.Label, "label", "", "")
 	fs.StringVar(&s.Task, "prompt", "", "")
+	fs.BoolVar(&s.Worktree, "worktree", false, "")
 	if err := parse(fs, args); err != nil {
 		return control.Request{}, err
 	}
@@ -92,7 +93,6 @@ func request(args []string, list []projects.Project, all []config.Mode, cwd stri
 	if err != nil {
 		return control.Request{}, err
 	}
-	r.Label = label
 	if r.Kind == "" && len(installed) == 0 {
 		return control.Request{}, errors.New("no agent CLI installed (claude, codex or opencode)")
 	}

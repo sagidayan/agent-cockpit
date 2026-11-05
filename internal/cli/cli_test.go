@@ -41,6 +41,7 @@ func TestRequest(t *testing.T) {
 		{"flags override project", []string{"--project", "api", "--agent", "claude", "--name", "n"}, false, control.Request{Kind: "claude", Dir: "/opt/api", Name: "n", Mode: "code"}, ""},
 		{"project without agent", []string{"--project", "web"}, false, control.Request{Kind: "claude", Dir: "/opt/web", Name: "web", Mode: "code"}, ""},
 		{"all flags", []string{"--agent", "opencode", "--label", "L", "--prompt", "hi there"}, false, control.Request{Kind: "opencode", Dir: "/work", Label: "L", Prompt: "hi there", Mode: "code"}, ""},
+		{"worktree outside a repo", []string{"--worktree"}, false, control.Request{}, "/work is not in a git repository"},
 		{"review infers dir and name", []string{"--mode", "review", "--url", "https://github.com/acme/web/pull/7"}, false, control.Request{Kind: "claude", Dir: "/tmp/prs/web-7", Name: "review web#7", Prompt: "R https://github.com/acme/web/pull/7", Mode: "review"}, ""},
 		{"review without url", []string{"--mode", "review"}, false, control.Request{}, "PR URL is required"},
 		{"master in home", []string{"--mode", "master", "--prompt", "ship it"}, false, control.Request{Kind: "claude", Dir: home, Name: "master", Prompt: "M ship it", Mode: "master"}, ""},

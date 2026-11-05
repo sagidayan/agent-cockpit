@@ -549,6 +549,11 @@ func (f spawnForm) crumb(step spawnStep) string {
 		return paths.Contract(filepath.Clean(paths.Expand(f.dir.Value())))
 	case stepURL:
 		return modes.ReviewName(strings.TrimSpace(f.url.Value()))
+	case stepWorktree:
+		if f.worktree {
+			return "new worktree"
+		}
+		return "this checkout"
 	}
 	return ""
 }
@@ -565,6 +570,8 @@ func (f spawnForm) question() string {
 		return "Which folder?"
 	case stepURL:
 		return "Which pull request?"
+	case stepWorktree:
+		return "Work in a separate git worktree?"
 	}
 	return taskQuestions[f.currentMode().Input]
 }
@@ -584,12 +591,13 @@ var modeDescriptions = map[string]string{
 }
 
 var stepKeys = map[spawnStep][][2]string{
-	stepMode:    {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "cancel"}},
-	stepKind:    {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
-	stepProject: {{"type", "filter"}, {"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
-	stepDir:     {{"type", "filter"}, {"↑↓", "choose"}, {"→", "open"}, {"←", "up"}, {"⏎", "next"}, {"esc", "back"}},
-	stepURL:     {{"⏎", "next"}, {"esc", "back"}},
-	stepDetails: {{"tab", "task / name"}, {"⏎", "start"}, {"esc", "back"}},
+	stepMode:     {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "cancel"}},
+	stepKind:     {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
+	stepProject:  {{"type", "filter"}, {"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
+	stepDir:      {{"type", "filter"}, {"↑↓", "choose"}, {"→", "open"}, {"←", "up"}, {"⏎", "next"}, {"esc", "back"}},
+	stepURL:      {{"⏎", "next"}, {"esc", "back"}},
+	stepWorktree: {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
+	stepDetails:  {{"tab", "task / name"}, {"⏎", "start"}, {"esc", "back"}},
 }
 
 func (m model) stepBody() []string {
@@ -613,6 +621,15 @@ func (m model) stepBody() []string {
 		return append([]string{m.formRow("dir", f.dir.View(), true)}, m.suggestionRows()...)
 	case stepURL:
 		return []string{m.formRow("PR url", f.url.View(), true)}
+	case stepWorktree:
+		items := []suggestion{
+			{"no", "work in this checkout", ""},
+			{"yes", "new cockpit/<name> branch from HEAD, in a sibling <repo>-worktrees folder", ""},
+		}
+		if f.worktree {
+			return m.choices(items, 1)
+		}
+		return m.choices(items, 0)
 	}
 	label := map[string]string{modes.InputURL: "notes", modes.InputTemp: "question"}[f.currentMode().Input]
 	return []string{

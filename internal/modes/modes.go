@@ -3,6 +3,7 @@ package modes
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/control"
 	"github.com/sagidayan/agent-cockpit/internal/paths"
+	"github.com/sagidayan/agent-cockpit/internal/worktree"
 )
 
 const (
@@ -37,6 +39,7 @@ Also: {{.Task}}{{end}}`
 const masterPrompt = `You are a master agent: you coordinate other coding agents and don't edit code yourself.
 Use the cockpit MCP tools: list_projects to see the folders you can work in, spawn_agent to start a child agent in a folder with a focused task, wait_for_agent, get_output and get_diff to follow up and review, and send_task to give feedback.
 Split the work across folders, run children in parallel when you can, and report back to me with a summary.
+When several children work in the same repo at once, pass worktree: true to spawn_agent so each gets its own git worktree on a new cockpit/<label> branch, and name the branches in your report.
 For a large chunk that spans several folders, spawn a sub-master with spawn_agent mode "master"; it runs its own children and reports back to you.
 When you decide a child's work is done and reviewed, close it with close_agent. Close all your children before you report back.{{if .Task}}
 
@@ -134,10 +137,18 @@ func ReviewName(raw string) string {
 }
 
 type Spec struct {
-	Kind, Dir, Name, Task, URL string
+	Kind, Dir, Name, Label, Task, URL string
+	Worktree                          bool
+}
+
+func TakesDir(m config.Mode) bool {
+	return !slices.Contains([]string{InputURL, InputNone, InputTemp}, m.Input)
 }
 
 func Build(m config.Mode, s Spec) (control.Request, error) {
+	if s.Worktree && !TakesDir(m) {
+		return control.Request{}, fmt.Errorf("a worktree needs a mode that works in a folder, not %s", m.Name)
+	}
 	prompt, err := Prompt(m, Inputs{Task: s.Task, URL: s.URL})
 	if err != nil {
 		return control.Request{}, err
@@ -166,6 +177,11 @@ func Build(m config.Mode, s Spec) (control.Request, error) {
 		if dir == "" {
 			return control.Request{}, errors.New("a directory is required")
 		}
+		if s.Worktree {
+			if dir, err = worktree.Create(dir, cmp.Or(s.Label, name, filepath.Base(dir))); err != nil {
+				return control.Request{}, err
+			}
+		}
 	}
-	return control.Request{Kind: cmp.Or(s.Kind, m.Agent), Dir: dir, Name: name, Prompt: prompt, Mode: m.Name}, nil
+	return control.Request{Kind: cmp.Or(s.Kind, m.Agent), Dir: dir, Name: name, Label: s.Label, Prompt: prompt, Mode: m.Name}, nil
 }

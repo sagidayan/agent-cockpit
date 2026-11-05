@@ -2,6 +2,7 @@ package tui
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -103,14 +104,16 @@ func TestSpawnSteps(t *testing.T) {
 		kinds   []string
 		list    []projects.Project
 		project string
+		repo    bool
 		want    []spawnStep
 	}{
-		{"coding without projects", modes.Code, two, nil, "", []spawnStep{stepMode, stepKind, stepDir, stepDetails}},
-		{"coding with a project", modes.Code, one, list, "api", []spawnStep{stepMode, stepProject, stepDetails}},
-		{"coding in another folder", modes.Code, one, list, "", []spawnStep{stepMode, stepProject, stepDir, stepDetails}},
-		{"review", modes.Review, two, list, "", []spawnStep{stepMode, stepKind, stepURL, stepDetails}},
-		{"master", modes.Master, two, list, "", []spawnStep{stepMode, stepKind, stepDetails}},
-		{"chat with one agent", modes.Chat, one, list, "", []spawnStep{stepMode, stepDetails}},
+		{"coding without projects", modes.Code, two, nil, "", false, []spawnStep{stepMode, stepKind, stepDir, stepDetails}},
+		{"coding with a project", modes.Code, one, list, "api", false, []spawnStep{stepMode, stepProject, stepDetails}},
+		{"coding in another folder", modes.Code, one, list, "", false, []spawnStep{stepMode, stepProject, stepDir, stepDetails}},
+		{"coding in a git repo", modes.Code, one, list, "api", true, []spawnStep{stepMode, stepProject, stepWorktree, stepDetails}},
+		{"review", modes.Review, two, list, "", false, []spawnStep{stepMode, stepKind, stepURL, stepDetails}},
+		{"master", modes.Master, two, list, "", true, []spawnStep{stepMode, stepKind, stepDetails}},
+		{"chat with one agent", modes.Chat, one, list, "", false, []spawnStep{stepMode, stepDetails}},
 	}
 	for _, tc := range cases {
 		tc := tc
@@ -118,7 +121,7 @@ func TestSpawnSteps(t *testing.T) {
 			t.Parallel()
 			f := testForm(tc.kinds, tc.list, "/")
 			f.mode = slices.IndexFunc(f.modes, func(m config.Mode) bool { return m.Name == tc.mode })
-			f.project = tc.project
+			f.project, f.repo = tc.project, tc.repo
 			require.Equal(t, tc.want, f.steps())
 		})
 	}
@@ -188,4 +191,30 @@ func TestSpawnWizardDirNavigation(t *testing.T) {
 	f = press(f, tea.KeyLeft)
 	require.Equal(t, root+"/", f.dir.Value())
 	require.True(t, f.dismissible())
+}
+
+func TestSpawnWizardWorktree(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	repo := filepath.Join(root, "api")
+	require.NoError(t, os.Mkdir(repo, 0o755))
+	for _, args := range [][]string{{"init", "-q"}, {"commit", "-q", "--allow-empty", "-m", "init"}} {
+		out, err := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+
+	f, _ := testForm([]string{"claude"}, nil, repo).enter(stepDir)
+	f, _ = f.next()
+	require.Equal(t, stepWorktree, f.step)
+	f, _ = f.update(tea.KeyPressMsg{Code: tea.KeyDown})
+	require.True(t, f.worktree)
+	f, _ = f.next()
+	require.Equal(t, stepDetails, f.step)
+	f.name.SetValue("Refunds")
+
+	r, err := f.request()
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(root, "api-worktrees", "refunds"), r.Dir)
+	require.DirExists(t, r.Dir)
 }

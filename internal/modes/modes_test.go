@@ -55,6 +55,8 @@ func TestBuild(t *testing.T) {
 		{"master defaults name", Master, Spec{Kind: "claude"}, "", "claude", "master", "You are a master agent"},
 		{"chat gets a disposable folder", Chat, Spec{Kind: "claude", Task: "what is a rune?"}, "", "claude", "chat", "what is a rune?"},
 		{"custom mode", "docs", Spec{Kind: "claude", Dir: "/a", Task: "api"}, "", "claude", "", "Write docs: api"},
+		{"worktree needs a repo", Code, Spec{Kind: "claude", Dir: "/a", Worktree: true}, "/a is not in a git repository", "", "", ""},
+		{"worktree needs a folder mode", Master, Spec{Kind: "claude", Worktree: true}, "worktree needs a mode that works in a folder", "", "", ""},
 	}
 	for _, tc := range cases {
 		tc := tc

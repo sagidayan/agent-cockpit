@@ -16,7 +16,7 @@ cockpit list --json                # pane, kind, status, session, window, label,
 cockpit project list               # named dirs; add NAME [DIR] | rm NAME
 
 cockpit new [--mode code|review|master|chat] [--agent claude|codex|opencode] \
-  [--project NAME | --dir DIR] [--url PR_URL] [--name WINDOW] [--label L] [--prompt TASK]
+  [--project NAME | --dir DIR] [--url PR_URL] [--name WINDOW] [--label L] [--prompt TASK] [--worktree]
                                    # prints the new pane id
 cockpit send TARGET "text"         # or: ... | cockpit send TARGET -
 cockpit stop TARGET                # interrupt (Esc)
@@ -27,7 +27,7 @@ cockpit restore                    # resume agents from last snapshot
 ```
 
 Modes:
-- `code` (default): works in `--project`/`--dir`; the prompt is its first task.
+- `code` (default): works in `--project`/`--dir`; the prompt is its first task. `--worktree` runs it in a new git worktree on a `cockpit/<label>` branch, use it when several agents work in one repo.
 - `review`: reviews `--url` in `/tmp/prs/<repo>-<number>`.
 - `master`: coordinates child agents via the MCP tools.
 - `chat`: a plain Q&A session in a disposable temp folder.
