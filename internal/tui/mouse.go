@@ -34,6 +34,9 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.spawning || m.sending || m.prompt != 0 || m.confirm != nil {
 		return m, nil
 	}
+	if m.detail.open {
+		return m.wheelDetail(msg), nil
+	}
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
 		return m.wheel(msg.Button), nil

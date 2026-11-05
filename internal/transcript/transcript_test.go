@@ -19,6 +19,7 @@ const (
 	interrupted = `{"type":"user","timestamp":"2026-01-01T10:00:05Z","message":{"content":[{"type":"text","text":"[Request interrupted by user]"}]}}`
 	injected    = `{"type":"user","timestamp":"2026-01-01T10:00:06Z","message":{"content":"<task-notification>x</task-notification>"}}`
 	meta        = `{"type":"user","isMeta":true,"timestamp":"2026-01-01T10:00:07Z","message":{"content":"skill text"}}`
+	toolUse     = `{"type":"assistant","timestamp":"2026-01-01T10:00:01Z","message":{"content":[{"type":"text","text":"Looking."},{"type":"tool_use","name":"Bash"}]}}`
 )
 
 func at(s string) time.Time {
@@ -68,6 +69,30 @@ func TestReadFollowsContinuation(t *testing.T) {
 	got, ok := Read(old)
 	require.True(t, ok)
 	require.Equal(t, at("10:00:04"), got.Ended)
+}
+
+func TestConversation(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		lines []string
+		n     int
+		want  []Message
+	}{
+		{"prompt, tools and reply", []string{prompt, toolUse, toolResult, reply, ended}, 10, []Message{{User, "fix the bug"}, {Assistant, "Looking."}, {Tool, "Bash"}, {Assistant, "Fixed it."}}},
+		{"keeps the last n", []string{prompt, toolUse, toolResult, reply}, 2, []Message{{Tool, "Bash"}, {Assistant, "Fixed it."}}},
+		{"skips injected, meta and interrupts", []string{prompt, interrupted, injected, meta}, 10, []Message{{User, "fix the bug"}}},
+		{"empty", nil, 10, nil},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := Conversation(write(t, t.TempDir(), "s", tc.lines...), tc.n)
+			require.True(t, ok)
+			require.Equal(t, tc.want, got)
+		})
+	}
 }
 
 func TestSettle(t *testing.T) {

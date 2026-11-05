@@ -27,6 +27,17 @@ type Turn struct {
 	Cwd         string
 }
 
+type Message struct {
+	Role string
+	Text string
+}
+
+const (
+	User      = "user"
+	Assistant = "assistant"
+	Tool      = "tool"
+)
+
 type entry struct {
 	Type        string    `json:"type"`
 	Subtype     string    `json:"subtype"`
@@ -42,6 +53,7 @@ type entry struct {
 type block struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
+	Name string `json:"name"`
 }
 
 func Settle(a state.Agent) state.Agent {
@@ -84,21 +96,41 @@ func File(a state.Agent) string {
 }
 
 func Read(path string) (Turn, bool) {
+	entries, ok := load(path)
+	if !ok {
+		return Turn{}, false
+	}
+	return turn(entries), true
+}
+
+func Conversation(path string, n int) ([]Message, bool) {
+	entries, ok := load(path)
+	if !ok {
+		return nil, false
+	}
+	var msgs []Message
+	for _, e := range entries {
+		msgs = append(msgs, messages(e)...)
+	}
+	return msgs[max(0, len(msgs)-n):], true
+}
+
+func load(path string) ([]entry, bool) {
 	for range maxHops {
 		if path == "" {
-			return Turn{}, false
+			return nil, false
 		}
 		data, err := tail(path)
 		if err != nil {
-			return Turn{}, false
+			return nil, false
 		}
-		t, next := parse(data)
+		entries, next := decode(data)
 		if next == "" {
-			return t, true
+			return entries, true
 		}
 		path = filepath.Join(filepath.Dir(path), next+".jsonl")
 	}
-	return Turn{}, false
+	return nil, false
 }
 
 func tail(path string) (string, error) {
@@ -123,16 +155,24 @@ func tail(path string) (string, error) {
 	return s, nil
 }
 
-func parse(data string) (t Turn, continuedIn string) {
+func decode(data string) (entries []entry, continuedIn string) {
 	for _, line := range strings.Split(data, "\n") {
 		var e entry
 		if json.Unmarshal([]byte(line), &e) != nil {
 			continue
 		}
+		if e.Type == "continued-in" {
+			continuedIn = e.ContinuedIn
+		}
+		entries = append(entries, e)
+	}
+	return entries, continuedIn
+}
+
+func turn(entries []entry) (t Turn) {
+	for _, e := range entries {
 		t.Cwd = cmp.Or(e.Cwd, t.Cwd)
 		switch {
-		case e.Type == "continued-in":
-			continuedIn = e.ContinuedIn
 		case e.Type == "system" && (e.Subtype == "turn_duration" || e.Subtype == "stop_hook_summary"):
 			t.Ended = e.Timestamp
 		case e.Type == "assistant":
@@ -143,7 +183,7 @@ func parse(data string) (t Turn, continuedIn string) {
 			text, isText := userText(e.Message.Content)
 			switch {
 			case !isText:
-			case strings.HasPrefix(text, "[Request interrupted by user"):
+			case isInterrupt(text):
 				t.Ended, t.Interrupted = e.Timestamp, true
 			default:
 				t = Turn{Prompt: t.Prompt, Started: e.Timestamp, Cwd: t.Cwd}
@@ -153,7 +193,40 @@ func parse(data string) (t Turn, continuedIn string) {
 			}
 		}
 	}
-	return t, continuedIn
+	return t
+}
+
+func messages(e entry) []Message {
+	switch {
+	case e.Type == "assistant":
+		return assistantMessages(e.Message.Content)
+	case e.Type == "user" && !e.IsMeta:
+		if text, _ := userText(e.Message.Content); IsPrompt(text) && !isInterrupt(text) {
+			return []Message{{User, text}}
+		}
+	}
+	return nil
+}
+
+func assistantMessages(raw json.RawMessage) []Message {
+	var blocks []block
+	if json.Unmarshal(raw, &blocks) != nil {
+		return nil
+	}
+	var msgs []Message
+	for _, b := range blocks {
+		switch {
+		case b.Type == "text" && b.Text != "":
+			msgs = append(msgs, Message{Assistant, b.Text})
+		case b.Type == "tool_use":
+			msgs = append(msgs, Message{Tool, b.Name})
+		}
+	}
+	return msgs
+}
+
+func isInterrupt(text string) bool {
+	return strings.HasPrefix(text, "[Request interrupted by user")
 }
 
 func userText(raw json.RawMessage) (string, bool) {

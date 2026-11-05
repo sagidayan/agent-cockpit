@@ -275,6 +275,8 @@ func (m model) listView(height int) string {
 		return box.Render(m.projectsView())
 	case m.overlay == "favorites":
 		return box.Render(m.favoritesView())
+	case m.detail.open:
+		return box.Render(m.detailView())
 	case len(m.agents) == 0 && m.filter != "":
 		return box.Render(mutedStyle.Render(" No agents match \"" + m.filter + "\"."))
 	case len(m.agents) == 0:
@@ -298,25 +300,10 @@ func (m model) scrollStart(cards []string, height int) int {
 func (m model) card(a agents.Live, selected bool) string {
 	depth := m.depth[a.ID]
 	inner := max(m.width-4-2*depth, 10)
-	status := m.statusBadge(a.Status)
-	label := withIcon(icons.kinds[a.Kind], name(a))
-	if depth > 0 {
-		label = "↳ " + label
-	}
-	if n := m.childCount(a); n > 0 {
-		label = m.chevron(a) + " " + label + " " + keyStyle.Render(fmt.Sprintf("[%d]", n))
-	}
-	if m.isFavorite(a) {
-		label += " " + favoriteStyle.Render(icons.star)
-	}
-	title := nameStyle.Render(ansi.Truncate(label, inner-lipgloss.Width(status)-1, "…"))
-	gap := max(1, inner-lipgloss.Width(title)-lipgloss.Width(status))
-	lines := []string{
-		title + strings.Repeat(" ", gap) + status,
-		metaLine(m.meta(a), statsLine(a), inner),
+	lines := append(m.cardHead(a, inner),
 		ansi.Truncate(keyStyle.Render("❯")+" "+orPlaceholder(tldr(a.Prompt), "no prompt yet"), inner, "…"),
 		ansi.Truncate(m.reply(a), inner, "…"),
-	}
+	)
 	bar := subtleStyle.Render("│")
 	_, flashing := m.changed[a.ID]
 	switch {
@@ -335,6 +322,26 @@ func (m model) card(a agents.Live, selected bool) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func (m model) cardHead(a agents.Live, inner int) []string {
+	status := m.statusBadge(a.Status)
+	label := withIcon(icons.kinds[a.Kind], name(a))
+	if m.depth[a.ID] > 0 {
+		label = "↳ " + label
+	}
+	if n := m.childCount(a); n > 0 {
+		label = m.chevron(a) + " " + label + " " + keyStyle.Render(fmt.Sprintf("[%d]", n))
+	}
+	if m.isFavorite(a) {
+		label += " " + favoriteStyle.Render(icons.star)
+	}
+	title := nameStyle.Render(ansi.Truncate(label, inner-lipgloss.Width(status)-1, "…"))
+	gap := max(1, inner-lipgloss.Width(title)-lipgloss.Width(status))
+	return []string{
+		title + strings.Repeat(" ", gap) + status,
+		metaLine(m.meta(a), statsLine(a), inner),
+	}
 }
 
 func (m model) chevron(a agents.Live) string {
@@ -492,7 +499,7 @@ func (m model) projectsView() string {
 func (m model) helpView() string {
 	keys := [][2]string{
 		{"j/k ↑↓", "move"}, {"pgup/dn", "move by 5"}, {"home/end", "first / last (also G)"}, {"1-9", "jump to agent"},
-		{"⏎ → l", "interact in viewer"},
+		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
 		{"g", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
@@ -733,12 +740,14 @@ func totalCost(live []agents.Live) float64 {
 }
 
 func (m model) help() string {
-	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"g", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
+	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"g", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
 	switch {
 	case m.sending:
 		keys = [][2]string{{"⏎", "send"}, {"alt+⏎", "newline"}, {"esc", "cancel"}}
 	case m.spawning:
 		keys = stepKeys[m.form.step]
+	case m.detail.open:
+		keys = [][2]string{{"↑↓", "scroll"}, {"pgup/dn", "page"}, {"home/end", "top / bottom"}, {"⏎/→", "interact"}, {"s", "send"}, {"esc", "close"}}
 	}
 	var lines []string
 	line := ""

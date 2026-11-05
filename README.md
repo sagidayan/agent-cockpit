@@ -60,6 +60,7 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `j`/`k`, `↑`/`↓` | select agent (shown live in the viewer) |
 | `pgup`/`pgdn`, `home`/`end` | move by 5 / first / last |
 | `enter`, `→`, `l` | focus the viewer to interact; return with your tmux pane keys |
+| `i` | details: the agent's full last prompt and reply plus the recent conversation (from the claude transcript, or the bottom of the pane for other agents). Updates live; `↑`/`↓`, `pgup`/`pgdn`, `home`/`end` or the mouse wheel scroll, `esc` closes |
 | `g` | go-to: show the agent's window in your current session (linked from its own session, unlinked when you return to the cockpit) |
 | `d` | review the agent's changes in your editor (see `:diff`) |
 | `m` | move the agent and its children into the dedicated `cockpit` tmux session (its whole window, or just the agent pane if it shares a window with the cockpit) |

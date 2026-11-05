@@ -77,6 +77,7 @@ type model struct {
 	loadErr        error
 	actionErr      error
 	view           *viewer
+	detail         detail
 	sending        bool
 	input          textarea.Model
 	spawning       bool
@@ -227,7 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = msg.Width, msg.Height
 		m.input.SetWidth(max(m.width-4, 10))
 	case tickMsg:
-		return m, tea.Batch(load, tick())
+		return m, tea.Batch(load, tick(), m.reloadDetail())
 	case frameMsg:
 		return m.animate(time.Time(msg)), frame()
 	case tea.MouseMsg:
@@ -258,6 +259,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.notice = restoredNotice(msg.n)
 		}
 		return m, load
+	case detailMsg:
+		m = m.setDetail(msg)
 	case spawnedMsg:
 		m.actionErr = msg.err
 		if msg.err == nil {
@@ -283,6 +286,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.sending {
 			return m.updateInput(msg)
+		}
+		if m.detail.open {
+			return m.updateDetail(msg)
 		}
 		return m.updateList(msg)
 	}
@@ -353,6 +359,8 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.refreshView(), nil
 	case "enter", "right", "l":
 		return m.interact(), nil
+	case "i":
+		return m.openDetail()
 	case "g":
 		return m.goTo(), nil
 	case "space":
