@@ -16,6 +16,7 @@
 >>>>>>> 0510747 (Add a recently closed list and grouping by project)
 - `:restart` and `cockpit restart` relaunch an agent in its pane, resuming its session, so an agent whose MCP server died gets a fresh one.
 - Closing an agent removes its worktree and branch when they hold no changes; `:clean` removes leftover clean cockpit worktrees.
+- A parent's card shows the cost of its whole tree, closed children included (`tree_cost_usd` in `list_agents` and `cockpit list --json`). An optional `[budget] tree_usd` flags and notifies when a tree passes it.
 - The MCP server no longer dies when a tool panics, and logs its start, exit and panics to `~/.local/state/agent-cockpit/mcp.log`.
 
 ## v0.0.2
