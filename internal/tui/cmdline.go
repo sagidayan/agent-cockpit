@@ -50,6 +50,8 @@ func commands() []command {
 		{"restore", "", "restore sessions from last time", cmdRestore},
 		{"fav", "", "toggle favorite on the selected agent", cmdFav},
 		{"favorites", "", "list favorites and resume old ones", cmdFavorites},
+		{"closed", "", "list recently closed agents and resume them", cmdClosed},
+		{"group", "", "toggle grouping the list by project", cmdGroup},
 		{"help", "", "show keys and commands", cmdHelp},
 		{"quit", "", "quit cockpit", cmdQuit},
 	}
@@ -248,8 +250,7 @@ func cmdKill(m model, _ string) (model, tea.Cmd) {
 				if m.view != nil && m.view.viewing == a.ID {
 					_ = m.view.restore()
 				}
-				m.actionErr = control.Kill(a)
-				return m, load
+				return m, tea.Sequence(func() tea.Msg { return actionMsg{err: control.Kill(a)} }, load)
 			},
 		}
 		return m, nil

@@ -73,6 +73,9 @@ type model struct {
 	clickedAt      time.Time
 	favorites      []snapshot.Entry
 	favCursor      int
+	closed         []state.Closed
+	closedCursor   int
+	grouped        bool
 	depth          map[string]int
 	expanded       map[string]bool
 	cursor         int
@@ -99,7 +102,7 @@ func Run() error {
 		return err
 	}
 	v := newViewer()
-	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder()}).Run()
+	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder(), grouped: state.LoadGrouped()}).Run()
 	v.close()
 	if m, ok := final.(model); ok && err == nil {
 		return saveSnapshot(m)
@@ -280,6 +283,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.overlay == "favorites" {
 			return m.updateFavorites(msg)
+		}
+		if m.overlay == "closed" {
+			return m.updateClosed(msg)
 		}
 		if m.overlay != "" {
 			m.overlay = ""

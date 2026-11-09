@@ -19,6 +19,9 @@ func (m model) cardAt(y int) (int, bool) {
 	line += m.scrollStart(cards, height)
 	for i, c := range cards {
 		h := lipgloss.Height(c)
+		if line == 0 && m.startsGroup(i) {
+			return 0, false
+		}
 		if line < h {
 			return i, true
 		}

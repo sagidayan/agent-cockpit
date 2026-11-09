@@ -123,6 +123,9 @@ func (m model) cards() []string {
 	cards := make([]string, len(m.agents))
 	for i, a := range m.agents {
 		cards[i] = m.card(a, i == m.cursor)
+		if m.startsGroup(i) {
+			cards[i] = m.groupHeader(a) + "\n" + cards[i]
+		}
 	}
 	return cards
 }
@@ -267,6 +270,8 @@ func (m model) listView(height int) string {
 		return box.Render(m.projectsView())
 	case m.overlay == "favorites":
 		return box.Render(m.favoritesView())
+	case m.overlay == "closed":
+		return box.Render(m.closedView(height))
 	case m.detail.open:
 		return box.Render(m.detailView())
 	case len(m.agents) == 0 && m.filter != "":

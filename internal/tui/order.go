@@ -58,7 +58,7 @@ func (m model) sibling(a agents.Live, step int) (agents.Live, bool) {
 	for j := m.cursor + step; j >= 0 && j < len(m.agents); j += step {
 		b := m.agents[j]
 		switch {
-		case m.depth[b.ID] < d:
+		case m.depth[b.ID] < d, d == 0 && m.grouped && groupDir(b) != groupDir(a):
 			return agents.Live{}, false
 		case m.depth[b.ID] == d && m.favoriteRank(b) == m.favoriteRank(a):
 			return b, true

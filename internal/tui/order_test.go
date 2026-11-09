@@ -24,6 +24,13 @@ func live(ids ...string) []agents.Live {
 	return list
 }
 
+func inDirs(list []agents.Live, dirs ...string) []agents.Live {
+	for i := range list {
+		list[i].Pane.Cwd = dirs[i]
+	}
+	return list
+}
+
 func ids(list []agents.Live) []string {
 	var out []string
 	for _, a := range list {
@@ -60,24 +67,27 @@ func TestShift(t *testing.T) {
 		all       []agents.Live
 		favorites []snapshot.Entry
 		sortBy    string
+		grouped   bool
 		selected  string
 		step      int
 		want      []string
 		wantSaved bool
 	}{
-		{"down", live("%1", "%2", "%3"), nil, "", "%1", 1, []string{"%2", "%1", "%3"}, true},
-		{"up", live("%1", "%2", "%3"), nil, "", "%3", -1, []string{"%1", "%3", "%2"}, true},
-		{"top stays", live("%1", "%2"), nil, "", "%1", -1, []string{"%1", "%2"}, false},
-		{"jumps over children", live("%1", "%1>%2", "%3"), nil, "", "%1", 1, []string{"%3", "%1", "%2"}, true},
-		{"child stays with its parent", live("%1", "%1>%2", "%3"), nil, "", "%2", 1, []string{"%1", "%2", "%3"}, false},
-		{"not past a favorite", live("%1", "%2"), []snapshot.Entry{{SessionID: "s%1"}}, "", "%2", -1, []string{"%1", "%2"}, false},
-		{"not while sorted", live("%1", "%2"), nil, "name", "%1", 1, []string{"%1", "%2"}, false},
+		{"down", live("%1", "%2", "%3"), nil, "", false, "%1", 1, []string{"%2", "%1", "%3"}, true},
+		{"up", live("%1", "%2", "%3"), nil, "", false, "%3", -1, []string{"%1", "%3", "%2"}, true},
+		{"top stays", live("%1", "%2"), nil, "", false, "%1", -1, []string{"%1", "%2"}, false},
+		{"jumps over children", live("%1", "%1>%2", "%3"), nil, "", false, "%1", 1, []string{"%3", "%1", "%2"}, true},
+		{"child stays with its parent", live("%1", "%1>%2", "%3"), nil, "", false, "%2", 1, []string{"%1", "%2", "%3"}, false},
+		{"not past a favorite", live("%1", "%2"), []snapshot.Entry{{SessionID: "s%1"}}, "", false, "%2", -1, []string{"%1", "%2"}, false},
+		{"not while sorted", live("%1", "%2"), nil, "name", false, "%1", 1, []string{"%1", "%2"}, false},
+		{"within a project group", inDirs(live("%1", "%2", "%3"), "/a", "/b", "/a"), nil, "", true, "%1", 1, []string{"%3", "%1", "%2"}, true},
+		{"not across project groups", inDirs(live("%1", "%2", "%3"), "/a", "/b", "/a"), nil, "", true, "%3", 1, []string{"%1", "%3", "%2"}, false},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			m := model{all: tc.all, favorites: tc.favorites, sortBy: tc.sortBy, order: arrange(nil, tc.all), expanded: map[string]bool{"%1": true}}
+			m := model{all: tc.all, favorites: tc.favorites, sortBy: tc.sortBy, grouped: tc.grouped, order: arrange(nil, tc.all), expanded: map[string]bool{"%1": true}}
 			m = m.refreshView().selectID(tc.selected)
 			m, cmd := m.shift(tc.step)
 			require.Equal(t, tc.want, ids(m.agents))

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -46,6 +47,22 @@ type Stats struct {
 	UpdatedAt    time.Time `json:"updated_at"`
 }
 
+type Closed struct {
+	Name      string    `json:"name"`
+	Label     string    `json:"label,omitempty"`
+	Kind      string    `json:"kind"`
+	Dir       string    `json:"dir"`
+	Mode      string    `json:"mode,omitempty"`
+	Parent    string    `json:"parent,omitempty"`
+	SessionID string    `json:"session_id,omitempty"`
+	Message   string    `json:"message,omitempty"`
+	Diff      string    `json:"diff,omitempty"`
+	CostUSD   float64   `json:"cost_usd,omitempty"`
+	ClosedAt  time.Time `json:"closed_at"`
+}
+
+const closedLimit = 20
+
 func root() string {
 	base := os.Getenv("XDG_STATE_HOME")
 	if base == "" {
@@ -67,6 +84,46 @@ func LoadOrder() []string {
 
 func SaveOrder(ids []string) error {
 	return write(filepath.Join(root(), "order.json"), ids)
+}
+
+func LoadGrouped() bool {
+	var on bool
+	_ = read(filepath.Join(root(), "group.json"), &on)
+	return on
+}
+
+func SaveGrouped(on bool) error {
+	return write(filepath.Join(root(), "group.json"), on)
+}
+
+func closedPath() string {
+	return filepath.Join(root(), "closed.json")
+}
+
+func LoadClosed() []Closed {
+	var list []Closed
+	_ = read(closedPath(), &list)
+	return list
+}
+
+func AddClosed(c Closed) error {
+	unlock, err := lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	list := append([]Closed{c}, LoadClosed()...)
+	return write(closedPath(), list[:min(len(list), closedLimit)])
+}
+
+func RemoveClosed(c Closed) error {
+	unlock, err := lock()
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	list := slices.DeleteFunc(LoadClosed(), func(x Closed) bool { return x.ClosedAt.Equal(c.ClosedAt) })
+	return write(closedPath(), list)
 }
 
 func Dir() string {

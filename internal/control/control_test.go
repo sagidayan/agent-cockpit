@@ -1,9 +1,11 @@
 package control
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -71,4 +73,23 @@ func TestHandOver(t *testing.T) {
 	require.Equal(t, []string{repo, "/z/earlier", "/z/grandchild"}, got.Touched)
 	_, err = state.Load("%9")
 	require.Error(t, err)
+}
+
+func TestRecord(t *testing.T) {
+	t.Parallel()
+	repo := t.TempDir()
+	for _, args := range [][]string{{"init", "-q"}, {"commit", "-q", "--allow-empty", "-m", "init"}} {
+		out, err := exec.Command("git", append([]string{"-C", repo, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(repo, "f.txt"), []byte("x\n"), 0o644))
+	a := agents.Live{
+		Agent: state.Agent{Pane: "%1", Kind: "claude", Cwd: repo, SessionID: "s1", Message: "done"},
+		Pane:  tmux.Pane{ID: "%1", WindowName: "w", Label: "bug", Cwd: repo},
+		Stats: state.Stats{CostUSD: 1.5},
+	}
+	got := record(a)
+	require.WithinDuration(t, time.Now(), got.ClosedAt, time.Minute)
+	got.ClosedAt = time.Time{}
+	require.Equal(t, state.Closed{Name: "w", Label: "bug", Kind: "claude", Dir: repo, SessionID: "s1", Message: "done", Diff: "1 files changed, +1 -0: f.txt", CostUSD: 1.5}, got)
 }

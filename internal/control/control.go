@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/sagidayan/agent-cockpit/internal/agents"
 	"github.com/sagidayan/agent-cockpit/internal/changes"
@@ -161,6 +162,7 @@ func Stop(a agents.Live) error {
 
 func Kill(a agents.Live) error {
 	handOver(a)
+	_ = state.AddClosed(record(a))
 	editors, _ := tmux.PanesWithOption(editorOption, a.ID)
 	for _, e := range editors {
 		_ = tmux.Kill(e)
@@ -173,6 +175,30 @@ func Kill(a agents.Live) error {
 		return os.RemoveAll(a.Pane.Cwd)
 	}
 	return nil
+}
+
+func record(a agents.Live) state.Closed {
+	return state.Closed{
+		Name: a.WindowName, Label: a.Label, Kind: a.Kind, Dir: a.Pane.Cwd, Mode: a.Mode,
+		Parent: parentName(a.Parent), SessionID: a.SessionID, Message: a.Message,
+		Diff: diffSummary(a), CostUSD: a.Stats.CostUSD, ClosedAt: time.Now(),
+	}
+}
+
+func parentName(pane string) string {
+	if pane == "" {
+		return ""
+	}
+	label, window, _ := tmux.Names(pane)
+	return cmp.Or(label, window)
+}
+
+func diffSummary(a agents.Live) string {
+	diff := changes.Diff(a, []agents.Live{a})
+	if diff == "" {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(changes.Summary(diff), "# "))
 }
 
 func handOver(a agents.Live) {

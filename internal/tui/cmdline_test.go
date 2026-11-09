@@ -23,6 +23,8 @@ func TestLookup(t *testing.T) {
 		{"q", "quit", ""},
 		{"b", "broadcast", ""},
 		{"sh", "shell", ""},
+		{"cl", "closed", ""},
+		{"gr", "group", ""},
 		{"s", "", "ambiguous"},
 		{"nope", "", "unknown"},
 	}
@@ -113,7 +115,7 @@ func TestTreeOrder(t *testing.T) {
 	}
 }
 
-func TestRefreshViewFavoritesFirst(t *testing.T) {
+func TestRefreshViewOrder(t *testing.T) {
 	t.Parallel()
 	agent := func(id, parent string) agents.Live {
 		return agents.Live{Pane: tmux.Pane{ID: id, Parent: parent}, SessionID: "s" + id}
@@ -123,16 +125,18 @@ func TestRefreshViewFavoritesFirst(t *testing.T) {
 		name       string
 		all        []agents.Live
 		favorites  []snapshot.Entry
+		grouped    bool
 		selected   string
 		wantOrder  []string
 		wantCursor int
 	}{
-		{"no favorites", []agents.Live{agent("%1", ""), agent("%2", "")}, nil, "%1", []string{"%1", "%2"}, 0},
-		{"favorite moves up", []agents.Live{agent("%1", ""), agent("%2", "")}, []snapshot.Entry{fav("%2")}, "%2", []string{"%2", "%1"}, 0},
+		{"no favorites", []agents.Live{agent("%1", ""), agent("%2", "")}, nil, false, "%1", []string{"%1", "%2"}, 0},
+		{"favorite moves up", []agents.Live{agent("%1", ""), agent("%2", "")}, []snapshot.Entry{fav("%2")}, false, "%2", []string{"%2", "%1"}, 0},
 		{
 			"favorite parent brings children",
 			[]agents.Live{agent("%1", ""), agent("%2", ""), agent("%3", "%2")},
 			[]snapshot.Entry{fav("%2")},
+			false,
 			"%3",
 			[]string{"%2", "%3", "%1"},
 			1,
@@ -141,16 +145,44 @@ func TestRefreshViewFavoritesFirst(t *testing.T) {
 			"favorite child stays under parent",
 			[]agents.Live{agent("%1", ""), agent("%2", ""), agent("%3", "%2")},
 			[]snapshot.Entry{fav("%3")},
+			false,
 			"%1",
 			[]string{"%1", "%2", "%3"},
 			0,
+		},
+		{
+			"grouped by project in first-seen order",
+			inDirs([]agents.Live{agent("%1", ""), agent("%2", ""), agent("%3", ""), agent("%4", "")}, "/a", "/b", "/a-worktrees/x", "/b"),
+			nil,
+			true,
+			"%2",
+			[]string{"%1", "%3", "%2", "%4"},
+			2,
+		},
+		{
+			"group with a favorite goes first",
+			inDirs([]agents.Live{agent("%1", ""), agent("%2", ""), agent("%3", "")}, "/a", "/b", "/a"),
+			[]snapshot.Entry{fav("%2")},
+			true,
+			"%1",
+			[]string{"%2", "%1", "%3"},
+			1,
+		},
+		{
+			"grouped child stays under its parent",
+			inDirs([]agents.Live{agent("%1", ""), agent("%2", ""), agent("%3", "%2")}, "/a", "/b", "/a"),
+			nil,
+			true,
+			"%3",
+			[]string{"%1", "%2", "%3"},
+			2,
 		},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			m := model{all: tc.all, favorites: tc.favorites, agents: tc.all, expanded: map[string]bool{"%2": true}}
+			m := model{all: tc.all, favorites: tc.favorites, grouped: tc.grouped, agents: tc.all, expanded: map[string]bool{"%2": true}}
 			m.cursor = slices.IndexFunc(tc.all, func(a agents.Live) bool { return a.ID == tc.selected })
 			m = m.refreshView()
 			var ids []string

@@ -94,6 +94,8 @@ Commands:
 | `:!<cmd>` | run a command in the agent's directory in a popup |
 | `:restore` | restore sessions from last time |
 | `:fav`, `:favorites` | toggle favorite / open the favorites list |
+| `:closed` | the last 20 closed agents (from the dashboard, `cockpit kill` or `close_agent`) with their folder, parent, last reply, diff summary and cost: `enter` resumes the conversation, `d` removes |
+| `:group` | toggle a header per project or repo (worktrees join their repo) above its agents; your order is kept inside each group, `J`/`K` move within a group, and the setting is kept across restarts |
 | `:goto`, `:move`, `:help`, `:quit` | |
 
 Mouse: click a card to view it, double-click to interact, scroll to move through the list (needs `set -g mouse on` in tmux; hold shift to select text).

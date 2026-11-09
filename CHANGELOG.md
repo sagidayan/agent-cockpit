@@ -8,7 +8,12 @@
 - The dashboard flags claude and opencode agents whose cockpit MCP server is gone (**⚠ MCP down**) and tells you how to reconnect.
 - The agent list keeps a fixed order: new agents join at the bottom, and `J`/`K` (or `pgdn`/`pgup`) move the selected one down or up. The order survives restarts.
 - Vim-style keys: `gg` / `G` jump to the first / last agent, and go-to is now `gt` instead of `g`.
+<<<<<<< HEAD
 - `d` and `get_diff` list edited files that git ignores. `mcp.log` rotates past 1 MiB, and claude installed through npm is checked for MCP health too.
+=======
+- `:closed` lists the last 20 closed agents with their last reply, diff summary and cost, and resumes one with `enter`.
+- `:group` shows a header per project above its agents, keeping your order inside each group.
+>>>>>>> 0510747 (Add a recently closed list and grouping by project)
 - The MCP server no longer dies when a tool panics, and logs its start, exit and panics to `~/.local/state/agent-cockpit/mcp.log`.
 
 ## v0.0.2

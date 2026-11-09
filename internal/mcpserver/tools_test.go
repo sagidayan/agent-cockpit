@@ -30,34 +30,6 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestSummarize(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		name string
-		in   string
-		want string
-	}{
-		{"empty", "", "# 0 files changed, +0 -0: \n"},
-		{
-			"modified and untracked",
-			"# /repo\ndiff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/new file.txt b/new file.txt\n--- /dev/null\n+++ b/new file.txt\n@@ -0,0 +1,2 @@\n+x\n+y\n",
-			"# 2 files changed, +3 -1: a.go, new file.txt\n",
-		},
-		{
-			"several repos",
-			"# /src/api\n# branch x\ndiff --git a/README.md b/README.md\n+a\n# /src/web: git diff failed\n# /src/web2\ndiff --git a/README.md b/README.md\n-b\n",
-			"# 2 files changed in 2 repos, +1 -1: api/README.md, web2/README.md\n",
-		},
-	}
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.want, summarize(tc.in))
-		})
-	}
-}
-
 func TestWaitSeconds(t *testing.T) {
 	t.Parallel()
 	cases := []struct {

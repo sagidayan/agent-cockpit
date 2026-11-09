@@ -52,6 +52,9 @@ func (m model) refreshView() model {
 	slices.SortStableFunc(visible, func(a, b agents.Live) int {
 		return cmp.Compare(m.favoriteRank(a), m.favoriteRank(b))
 	})
+	if m.grouped {
+		byGroup(visible)
+	}
 	m = m.expandPending()
 	m.agents, m.depth = treeOrder(visible, m.isExpanded)
 	m.cursor = min(m.cursor, max(0, len(m.agents)-1))

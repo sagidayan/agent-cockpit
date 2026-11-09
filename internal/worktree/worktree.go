@@ -11,7 +11,10 @@ import (
 	"strings"
 )
 
-const branchPrefix = "cockpit/"
+const (
+	branchPrefix = "cockpit/"
+	suffix       = "-worktrees"
+)
 
 func InRepo(dir string) bool {
 	_, err := git(dir, "rev-parse", "--show-toplevel")
@@ -23,7 +26,7 @@ func Create(dir, name string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s is not in a git repository", dir)
 	}
-	parent := root + "-worktrees"
+	parent := root + suffix
 	path, branch, err := free(dir, parent, slugify(name))
 	if err != nil {
 		return "", err
@@ -32,6 +35,13 @@ func Create(dir, name string) (string, error) {
 		return "", err
 	}
 	return path, nil
+}
+
+func Origin(dir string) string {
+	if repo, ok := strings.CutSuffix(filepath.Dir(dir), suffix); ok {
+		return repo
+	}
+	return dir
 }
 
 func mainRoot(dir string) (string, error) {

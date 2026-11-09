@@ -3,8 +3,6 @@ package mcpserver
 import (
 	"context"
 	"fmt"
-	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -184,38 +182,7 @@ func getDiff(_ context.Context, _ *mcp.CallToolRequest, in paneArgs) (*mcp.CallT
 	if diff == "" {
 		return text("no changes found in the repos " + in.Pane + " or its children touched"), nil, nil
 	}
-	return text(truncate(summarize(diff)+diff, diffLimit)), nil, nil
-}
-
-func summarize(diff string) string {
-	var files, repos []string
-	var repo string
-	var added, removed int
-	for line := range strings.SplitSeq(diff, "\n") {
-		switch {
-		case strings.HasPrefix(line, "# /"):
-			repo, _, _ = strings.Cut(strings.TrimPrefix(line, "# "), ": ")
-		case strings.HasPrefix(line, "diff --git "):
-			_, name, _ := strings.Cut(line, " b/")
-			files = append(files, filepath.Join(filepath.Base(repo), name))
-			if !slices.Contains(repos, repo) {
-				repos = append(repos, repo)
-			}
-		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
-		case strings.HasPrefix(line, "+"):
-			added++
-		case strings.HasPrefix(line, "-"):
-			removed++
-		}
-	}
-	where := fmt.Sprintf(" in %d repos", len(repos))
-	if len(repos) < 2 {
-		where = ""
-		for i, f := range files {
-			files[i] = strings.TrimPrefix(f, filepath.Base(repo)+"/")
-		}
-	}
-	return fmt.Sprintf("# %d files changed%s, +%d -%d: %s\n", len(files), where, added, removed, strings.Join(files, ", "))
+	return text(truncate(changes.Summary(diff)+diff, diffLimit)), nil, nil
 }
 
 func truncate(s string, limit int) string {

@@ -126,3 +126,16 @@ func TestSlugify(t *testing.T) {
 		require.Equal(t, tc.want, slugify(tc.in), tc.in)
 	}
 }
+
+func TestOrigin(t *testing.T) {
+	t.Parallel()
+	cases := []struct{ in, want string }{
+		{"/src/app-worktrees/fix-bug", "/src/app"},
+		{"/src/app", "/src/app"},
+		{"/src/app-worktrees", "/src/app-worktrees"},
+		{"/src/app-worktrees/fix-bug/sub", "/src/app-worktrees/fix-bug/sub"},
+	}
+	for _, tc := range cases {
+		require.Equal(t, tc.want, Origin(tc.in), tc.in)
+	}
+}
