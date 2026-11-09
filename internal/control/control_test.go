@@ -57,11 +57,11 @@ func TestHandOver(t *testing.T) {
 	require.NoError(t, err, string(out))
 	repo, err = filepath.EvalSymlinks(repo)
 	require.NoError(t, err)
-	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", Touched: []string{"/z/earlier"}}))
-	require.NoError(t, state.Save(state.Agent{Pane: "%6", Kind: "codex", Touched: []string{"/z/grandchild"}}))
+	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", Touched: []string{"/z/earlier"}, ClosedCost: 0.5}))
+	require.NoError(t, state.Save(state.Agent{Pane: "%6", Kind: "codex", Touched: []string{"/z/grandchild"}, ClosedCost: 0.25}))
 
 	child := func(id, parent string) agents.Live {
-		return agents.Live{Agent: state.Agent{Pane: id, Kind: "codex", Cwd: repo}, Pane: tmux.Pane{ID: id, Parent: parent, Cwd: repo}}
+		return agents.Live{Agent: state.Agent{Pane: id, Kind: "codex", Cwd: repo}, Pane: tmux.Pane{ID: id, Parent: parent, Cwd: repo}, Stats: state.Stats{CostUSD: 1}, HasStats: true}
 	}
 	handOver(child("%2", "%1"))
 	handOver(child("%3", "%1"))
@@ -72,6 +72,7 @@ func TestHandOver(t *testing.T) {
 	got, err := state.Load("%1")
 	require.NoError(t, err)
 	require.Equal(t, []string{repo, "/z/earlier", "/z/grandchild"}, got.Touched)
+	require.InDelta(t, 3.75, got.ClosedCost, 1e-9)
 	_, err = state.Load("%9")
 	require.Error(t, err)
 }

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/notify"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
@@ -16,9 +17,10 @@ var kinds = []string{"claude", "codex", "opencode"}
 type Live struct {
 	state.Agent
 	tmux.Pane
-	Stats    state.Stats
-	HasStats bool
-	MCPDown  bool
+	Stats      state.Stats
+	HasStats   bool
+	MCPDown    bool
+	OverBudget bool
 }
 
 func List() ([]Live, error) {
@@ -108,4 +110,35 @@ func Subtree(live []Live, root Live) []Live {
 		}
 	}
 	return append(out, root)
+}
+
+func Spent(a Live) float64 {
+	if !a.HasStats {
+		return a.ClosedCost
+	}
+	return a.ClosedCost + a.Stats.CostUSD
+}
+
+func TreeCost(live []Live, root Live) float64 {
+	total := 0.0
+	for _, a := range Subtree(live, root) {
+		total += Spent(a)
+	}
+	return total
+}
+
+func WarnBudget(live []Live, cfg config.Config) {
+	if cfg.Budget.TreeUSD <= 0 {
+		return
+	}
+	for i, a := range live {
+		if slices.ContainsFunc(live, func(p Live) bool { return p.ID == a.Parent }) {
+			continue
+		}
+		total := TreeCost(live, a)
+		live[i].OverBudget = total > cfg.Budget.TreeUSD
+		if live[i].OverBudget != a.BudgetWarned {
+			_ = notify.Budget(cfg.Notify, a.ID, total, cfg.Budget.TreeUSD)
+		}
+	}
 }

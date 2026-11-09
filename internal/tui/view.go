@@ -336,11 +336,14 @@ func (m model) cardHead(a agents.Live, inner int) []string {
 	if a.MCPDown {
 		label += " " + errStyle.Render("⚠ MCP down")
 	}
+	if a.OverBudget && m.depth[a.ID] == 0 {
+		label += " " + errStyle.Render("⚠ over budget")
+	}
 	title := nameStyle.Render(ansi.Truncate(label, inner-lipgloss.Width(status)-1, "…"))
 	gap := max(1, inner-lipgloss.Width(title)-lipgloss.Width(status))
 	return []string{
 		title + strings.Repeat(" ", gap) + status,
-		metaLine(m.meta(a), statsLine(a), inner),
+		metaLine(m.meta(a), statsLine(a, agents.TreeCost(m.all, a)), inner),
 	}
 }
 
@@ -701,18 +704,18 @@ func (m model) formRow(label, value string, focused bool) string {
 	return mutedStyle.Render(fmt.Sprintf("  %-8s", label)) + value
 }
 
-func statsLine(a agents.Live) string {
-	if !a.HasStats {
-		return ""
-	}
+func statsLine(a agents.Live, tree float64) string {
 	s := a.Stats
+	if !a.HasStats {
+		s = state.Stats{}
+	}
 	var parts []string
 	if s.ContextMax > 0 {
 		pct := min(100, s.ContextUsed*100/s.ContextMax)
 		parts = append(parts, gauge(pct, 10)+" "+mutedStyle.Render(fmt.Sprintf("%d%%", pct)))
 	}
-	if s.CostUSD > 0 {
-		parts = append(parts, mutedStyle.Render(withIcon(icons.cost, fmt.Sprintf("%.2f", s.CostUSD))))
+	if c := costText(s.CostUSD, tree); c != "" {
+		parts = append(parts, mutedStyle.Render(withIcon(icons.cost, c)))
 	}
 	if s.LinesAdded+s.LinesRemoved > 0 {
 		diff := badges[state.Done].color.Render(fmt.Sprintf("+%d", s.LinesAdded)) + " " + errStyle.Render(fmt.Sprintf("-%d", s.LinesRemoved))
@@ -739,10 +742,20 @@ func gauge(pct, width int) string {
 	return lipgloss.NewStyle().Foreground(color).Render(strings.Repeat("▰", filled)) + subtleStyle.Render(strings.Repeat("▱", width-filled))
 }
 
+func costText(own, tree float64) string {
+	switch {
+	case tree > own:
+		return fmt.Sprintf("%.2f / tree %.2f", own, tree)
+	case own > 0:
+		return fmt.Sprintf("%.2f", own)
+	}
+	return ""
+}
+
 func totalCost(live []agents.Live) float64 {
 	total := 0.0
 	for _, a := range live {
-		total += a.Stats.CostUSD
+		total += agents.Spent(a)
 	}
 	return total
 }

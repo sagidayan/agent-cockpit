@@ -268,10 +268,10 @@ func handOver(a agents.Live) {
 		return
 	}
 	if saved, err := state.Load(a.ID); err == nil {
-		a.Touched = saved.Touched
+		a.Touched, a.ClosedCost = saved.Touched, saved.ClosedCost
 	}
-	touched := changes.Touched(a)
-	if len(touched) == 0 {
+	touched, spent := changes.Touched(a), agents.Spent(a)
+	if len(touched) == 0 && spent == 0 {
 		return
 	}
 	_, _, _, _ = state.Update(a.Parent, func(p state.Agent) (state.Agent, bool) {
@@ -279,6 +279,7 @@ func handOver(a agents.Live) {
 			return p, false
 		}
 		p.Touched = slices.Compact(slices.Sorted(slices.Values(append(p.Touched, touched...))))
+		p.ClosedCost += spent
 		return p, true
 	})
 }

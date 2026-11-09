@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 	"github.com/stretchr/testify/require"
@@ -165,4 +166,75 @@ func TestSettledPersistsOnce(t *testing.T) {
 	_, _, saved, err = state.Update("%1", settled)
 	require.NoError(t, err)
 	require.False(t, saved)
+}
+
+func costly(id, parent string, cost, closed float64, hasStats bool) Live {
+	return Live{
+		Agent:    state.Agent{Pane: id, Kind: "claude", ClosedCost: closed},
+		Pane:     tmux.Pane{ID: id, Parent: parent},
+		Stats:    state.Stats{CostUSD: cost},
+		HasStats: hasStats,
+	}
+}
+
+func TestTreeCost(t *testing.T) {
+	t.Parallel()
+	live := []Live{
+		costly("%1", "", 1, 0.5, true),
+		costly("%2", "%1", 2, 0, true),
+		costly("%3", "%2", 9, 0.25, false),
+		costly("%4", "", 1, 0, true),
+	}
+	cases := []struct {
+		name string
+		root int
+		want float64
+	}{
+		{"root with closed and live descendants", 0, 3.75},
+		{"middle of the tree", 1, 2.25},
+		{"stale stats count only closed cost", 2, 0.25},
+		{"separate tree", 3, 1},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.InDelta(t, tc.want, TreeCost(live, live[tc.root]), 1e-9)
+		})
+	}
+}
+
+func TestWarnBudget(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/sock,1,0")
+	live := []Live{
+		costly("%1", "", 1, 1, true),
+		costly("%2", "%1", 2, 0, true),
+		costly("%3", "", 1, 0, true),
+	}
+	for _, a := range live {
+		require.NoError(t, state.Save(a.Agent))
+	}
+	cfg := config.Default()
+	for _, budget := range []struct {
+		limit float64
+		want  []bool
+	}{
+		{3, []bool{true, false, false}},
+		{10, []bool{false, false, false}},
+	} {
+		cfg.Budget.TreeUSD = budget.limit
+		for i := range live {
+			saved, err := state.Load(live[i].ID)
+			require.NoError(t, err)
+			live[i].Agent = saved
+		}
+		WarnBudget(live, cfg)
+		for i, want := range budget.want {
+			require.Equal(t, want, live[i].OverBudget, live[i].ID)
+			saved, err := state.Load(live[i].ID)
+			require.NoError(t, err)
+			require.Equal(t, want, saved.BudgetWarned, live[i].ID)
+		}
+	}
 }

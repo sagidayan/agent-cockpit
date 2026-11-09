@@ -17,18 +17,19 @@ import (
 )
 
 type agentJSON struct {
-	Pane    string       `json:"pane"`
-	Kind    string       `json:"kind"`
-	Status  state.Status `json:"status"`
-	Session string       `json:"session"`
-	Window  string       `json:"window"`
-	Label   string       `json:"label,omitempty"`
-	Mode    string       `json:"mode,omitempty"`
-	Parent  string       `json:"parent,omitempty"`
-	Dir     string       `json:"dir"`
-	Project string       `json:"project,omitempty"`
-	Message string       `json:"message,omitempty"`
-	Stats   *state.Stats `json:"stats,omitempty"`
+	Pane     string       `json:"pane"`
+	Kind     string       `json:"kind"`
+	Status   state.Status `json:"status"`
+	Session  string       `json:"session"`
+	Window   string       `json:"window"`
+	Label    string       `json:"label,omitempty"`
+	Mode     string       `json:"mode,omitempty"`
+	Parent   string       `json:"parent,omitempty"`
+	Dir      string       `json:"dir"`
+	Project  string       `json:"project,omitempty"`
+	Message  string       `json:"message,omitempty"`
+	Stats    *state.Stats `json:"stats,omitempty"`
+	TreeCost float64      `json:"tree_cost_usd,omitempty"`
 }
 
 func list(args []string) error {
@@ -56,16 +57,16 @@ func list(args []string) error {
 func printJSON(live []agents.Live, projs []projects.Project) error {
 	out := make([]agentJSON, len(live))
 	for i, a := range live {
-		out[i] = toJSON(a, projs)
+		out[i] = toJSON(a, live, projs)
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(out)
 }
 
-func toJSON(a agents.Live, projs []projects.Project) agentJSON {
+func toJSON(a agents.Live, live []agents.Live, projs []projects.Project) agentJSON {
 	p, _ := projects.ForDir(projs, a.Pane.Cwd)
-	out := agentJSON{a.ID, a.Kind, a.Status, a.Session, a.WindowName, a.Label, a.Mode, a.Parent, a.Pane.Cwd, p.Name, a.Message, nil}
+	out := agentJSON{a.ID, a.Kind, a.Status, a.Session, a.WindowName, a.Label, a.Mode, a.Parent, a.Pane.Cwd, p.Name, a.Message, nil, agents.TreeCost(live, a)}
 	if a.HasStats {
 		out.Stats = &a.Stats
 	}

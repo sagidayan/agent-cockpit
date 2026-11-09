@@ -107,3 +107,35 @@ func TestHelpHints(t *testing.T) {
 		})
 	}
 }
+
+func TestCardHead(t *testing.T) {
+	t.Parallel()
+	parent := agents.Live{Agent: state.Agent{Kind: "claude", ClosedCost: 0.5}, Pane: tmux.Pane{ID: "%1", WindowName: "lead"}, Stats: state.Stats{CostUSD: 1}, HasStats: true}
+	child := agents.Live{Agent: state.Agent{Kind: "claude"}, Pane: tmux.Pane{ID: "%2", Parent: "%1", WindowName: "sub"}, Stats: state.Stats{CostUSD: 2}, HasStats: true}
+	over := parent
+	over.OverBudget = true
+	stale := agents.Live{Agent: state.Agent{Kind: "claude"}, Pane: tmux.Pane{ID: "%3", WindowName: "solo"}, Stats: state.Stats{CostUSD: 9}}
+	cases := []struct {
+		name  string
+		all   []agents.Live
+		agent agents.Live
+		show  string
+		hide  string
+	}{
+		{"parent shows tree total", []agents.Live{parent, child}, parent, "1.00 / tree 3.50", "over budget"},
+		{"leaf shows own cost", []agents.Live{parent, child}, child, "2.00", "tree"},
+		{"over budget root is flagged", []agents.Live{over, child}, over, "⚠ over budget", "MCP"},
+		{"stale stats show no cost", []agents.Live{stale}, stale, "solo", "9.00"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := model{width: 200, all: tc.all, depth: map[string]int{"%2": 1}}
+			got := ansi.Strip(strings.Join(m.cardHead(tc.agent, 190), "\n"))
+			if !strings.Contains(got, tc.show) || strings.Contains(got, tc.hide) {
+				t.Errorf("cardHead() = %q, want %q and not %q", got, tc.show, tc.hide)
+			}
+		})
+	}
+}

@@ -100,6 +100,8 @@ Commands:
 | `:group` | toggle a header per project or repo (worktrees join their repo) above its agents; your order is kept inside each group, `J`/`K` move within a group, and the setting is kept across restarts |
 | `:goto`, `:move`, `:help`, `:quit` | |
 
+A card with children shows its own cost and the tree total (`1.20 / tree 3.40`): itself plus all its descendants, including closed ones. The tree total is also `tree_cost_usd` in `list_agents` and `cockpit list --json`.
+
 Mouse: click a card to view it, double-click to interact, scroll to move through the list (needs `set -g mouse on` in tmux; hold shift to select text).
 
 Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, done, idle.
@@ -238,9 +240,12 @@ width = "50%"
 
 [spawn]
 max_depth = 3   # agent tree levels (agent -> child -> grandchild); 0 = no limit
+
+[budget]
+tree_usd = 0   # warn when an agent tree's total cost passes this (USD); 0 = off
 ```
 
-Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane. When claude ends a turn without running its hooks in the agent's pane, cockpit picks the end up from the session transcript and notifies once.
+Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane. When claude ends a turn without running its hooks in the agent's pane, cockpit picks the end up from the session transcript and notifies once. When a tree passes `[budget] tree_usd`, its root card is flagged "⚠ over budget" and you get one notification (again if it later passes a raised budget); agents keep running. The check runs while the dashboard is open.
 
 ## Releasing
 

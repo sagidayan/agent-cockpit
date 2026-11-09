@@ -49,6 +49,7 @@ type agentInfo struct {
 	Message    string       `json:"message"`
 	UpdatedAt  time.Time    `json:"updated_at"`
 	Stats      *state.Stats `json:"stats,omitempty"`
+	TreeCost   float64      `json:"tree_cost_usd,omitempty"`
 }
 
 type agentList struct {
@@ -102,7 +103,9 @@ func listAgents(_ context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.Cal
 	}
 	out := agentList{Agents: make([]agentInfo, 0, len(live))}
 	for _, l := range live {
-		out.Agents = append(out.Agents, toInfo(l))
+		info := toInfo(l)
+		info.TreeCost = agents.TreeCost(live, l)
+		out.Agents = append(out.Agents, info)
 	}
 	return nil, out, nil
 }

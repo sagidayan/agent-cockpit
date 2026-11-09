@@ -144,6 +144,9 @@ func load() tea.Msg {
 		return agentsMsg{err: err}
 	}
 	agents.MarkMCP(a)
+	if cfg, err := config.Load(); err == nil {
+		agents.WarnBudget(a, cfg)
+	}
 	p, err := projects.Load()
 	if err != nil {
 		return agentsMsg{err: err}

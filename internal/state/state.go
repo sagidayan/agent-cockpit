@@ -23,17 +23,19 @@ const (
 )
 
 type Agent struct {
-	Pane       string    `json:"pane"`
-	Kind       string    `json:"kind"`
-	Cwd        string    `json:"cwd"`
-	Status     Status    `json:"status"`
-	Message    string    `json:"message"`
-	Prompt     string    `json:"prompt,omitempty"`
-	Transcript string    `json:"transcript,omitempty"`
-	Touched    []string  `json:"touched,omitempty"`
-	Server     string    `json:"server,omitempty"`
-	SessionID  string    `json:"session_id,omitempty"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	Pane         string    `json:"pane"`
+	Kind         string    `json:"kind"`
+	Cwd          string    `json:"cwd"`
+	Status       Status    `json:"status"`
+	Message      string    `json:"message"`
+	Prompt       string    `json:"prompt,omitempty"`
+	Transcript   string    `json:"transcript,omitempty"`
+	Touched      []string  `json:"touched,omitempty"`
+	ClosedCost   float64   `json:"closed_cost_usd,omitempty"`
+	BudgetWarned bool      `json:"budget_warned,omitempty"`
+	Server       string    `json:"server,omitempty"`
+	SessionID    string    `json:"session_id,omitempty"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Stats struct {

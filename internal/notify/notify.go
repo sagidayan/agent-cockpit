@@ -3,6 +3,7 @@ package notify
 import (
 	"cmp"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,7 +65,34 @@ func Send(cfg config.Notify, a state.Agent) error {
 	if watched(clients, a.Pane) {
 		return nil
 	}
-	n := compose(a, describe(a))
+	return deliver(cfg, clients, a, compose(a, describe(a)))
+}
+
+func Budget(cfg config.Notify, pane string, total, limit float64) error {
+	over := total > limit
+	_, a, saved, err := state.Update(pane, func(p state.Agent) (state.Agent, bool) {
+		if p.Pane == "" || p.BudgetWarned == over {
+			return p, false
+		}
+		p.BudgetWarned = over
+		return p, true
+	})
+	if err != nil || !saved || !over {
+		return err
+	}
+	clients, err := tmux.Clients()
+	if err != nil {
+		return err
+	}
+	return deliver(cfg, clients, a, budgetNote(a, describe(a), total, limit))
+}
+
+func budgetNote(a state.Agent, id identity, total, limit float64) note {
+	who := friendlyName(a, id)
+	return note{who, "💸 " + who + " is over budget", fmt.Sprintf("Agent tree spent $%.2f, budget is $%.2f", total, limit)}
+}
+
+func deliver(cfg config.Notify, clients []tmux.Client, a state.Agent, n note) error {
 	var errs []error
 	if cfg.Desktop {
 		errs = append(errs, desktop(a.Status, n))

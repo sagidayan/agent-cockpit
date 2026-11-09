@@ -17,11 +17,16 @@ type Config struct {
 	UI     UI     `toml:"ui"`
 	Editor Editor `toml:"editor"`
 	Spawn  Spawn  `toml:"spawn"`
+	Budget Budget `toml:"budget"`
 	Modes  []Mode `toml:"mode"`
 }
 
 type Spawn struct {
 	MaxDepth int `toml:"max_depth"`
+}
+
+type Budget struct {
+	TreeUSD float64 `toml:"tree_usd"`
 }
 
 type Mode struct {
