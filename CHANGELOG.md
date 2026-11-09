@@ -17,6 +17,8 @@
 - `:restart` and `cockpit restart` relaunch an agent in its pane, resuming its session, so an agent whose MCP server died gets a fresh one.
 - Closing an agent removes its worktree and branch when they hold no changes; `:clean` removes leftover clean cockpit worktrees.
 - A parent's card shows the cost of its whole tree, closed children included (`tree_cost_usd` in `list_agents` and `cockpit list --json`). An optional `[budget] tree_usd` flags and notifies when a tree passes it.
+- A claude parent gets a `[cockpit]` line in its pane when a child finishes or needs input, unless it is already waiting on that child. Off with `[spawn] notify_parent = false`.
+- New `review_agent` MCP tool: spawns a read-only reviewer of an agent's changes, for a review-then-fix loop.
 - The MCP server no longer dies when a tool panics, and logs its start, exit and panics to `~/.local/state/agent-cockpit/mcp.log`.
 
 ## v0.0.2
