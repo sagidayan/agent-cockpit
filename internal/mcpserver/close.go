@@ -21,14 +21,18 @@ func closeAgent(_ context.Context, _ *mcp.CallToolRequest, in paneArgs) (*mcp.Ca
 	if err != nil {
 		return nil, nil, err
 	}
-	var closed []string
+	var closed, notes []string
 	for _, a := range tree {
-		if err := control.Kill(a); err != nil {
+		note, err := control.Kill(a)
+		if err != nil {
 			return nil, nil, err
 		}
 		closed = append(closed, a.ID)
+		if note != "" {
+			notes = append(notes, note)
+		}
 	}
-	return text("closed " + strings.Join(closed, ", ")), nil, nil
+	return text(strings.Join(append([]string{"closed " + strings.Join(closed, ", ")}, notes...), "\n")), nil, nil
 }
 
 func closable(live []agents.Live, pane, caller string) ([]agents.Live, error) {

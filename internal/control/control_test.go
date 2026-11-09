@@ -12,6 +12,7 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/agents"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
+	"github.com/sagidayan/agent-cockpit/internal/worktree"
 )
 
 func TestMatch(t *testing.T) {
@@ -92,4 +93,49 @@ func TestRecord(t *testing.T) {
 	require.WithinDuration(t, time.Now(), got.ClosedAt, time.Minute)
 	got.ClosedAt = time.Time{}
 	require.Equal(t, state.Closed{Name: "w", Label: "bug", Kind: "claude", Dir: repo, SessionID: "s1", Message: "done", Diff: "1 files changed, +1 -0: f.txt", CostUSD: 1.5}, got)
+}
+
+func TestRestartRefuses(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name    string
+		agent   state.Agent
+		wantErr string
+	}{
+		{"no session", state.Agent{Kind: "codex"}, "no session recorded"},
+		{"unknown kind", state.Agent{Kind: "vim", SessionID: "s1"}, "unknown agent"},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.ErrorContains(t, Restart(agents.Live{Agent: tc.agent}), tc.wantErr)
+		})
+	}
+}
+
+func TestCleanWorktrees(t *testing.T) {
+	t.Parallel()
+	repo, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	git := func(dir string, args ...string) {
+		out, err := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t"}, args...)...).CombinedOutput()
+		require.NoError(t, err, string(out))
+	}
+	git(repo, "init", "-q", "-b", "main")
+	git(repo, "commit", "-q", "--allow-empty", "-m", "init")
+	create := func(name string) string {
+		path, err := worktree.Create(repo, name)
+		require.NoError(t, err)
+		return path
+	}
+	clean, dirty, busy := create("clean"), create("dirty"), create("busy")
+	require.NoError(t, os.WriteFile(filepath.Join(dirty, "new.txt"), nil, 0o644))
+	live := []agents.Live{{Pane: tmux.Pane{Cwd: busy}}}
+
+	removed, kept := CleanWorktrees([]string{repo, busy}, live)
+	require.Equal(t, 1, removed)
+	require.Equal(t, []string{dirty + " (uncommitted changes)"}, kept)
+	require.NoDirExists(t, clean)
+	require.DirExists(t, busy)
 }

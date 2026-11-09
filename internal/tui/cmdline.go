@@ -40,6 +40,8 @@ func commands() []command {
 		{"broadcast", "<text>", "send text to every listed agent", cmdBroadcast},
 		{"stop", "", "interrupt the selected agent", cmdStop},
 		{"kill", "", "close the selected agent's pane", cmdKill},
+		{"restart", "", "relaunch the selected agent, resuming its session", cmdRestart},
+		{"clean", "", "remove leftover cockpit worktrees with no changes", cmdClean},
 		{"rename", "[name]", "label the agent in cockpit (empty clears)", cmdRename},
 		{"sort", "status|recent|name|cost|location", "change the list order", cmdSort},
 		{"project", "[add <name> [dir] | rm <name>]", "list or manage projects", cmdProject},
@@ -250,7 +252,10 @@ func cmdKill(m model, _ string) (model, tea.Cmd) {
 				if m.view != nil && m.view.viewing == a.ID {
 					_ = m.view.restore()
 				}
-				return m, tea.Sequence(func() tea.Msg { return actionMsg{err: control.Kill(a)} }, load)
+				return m, tea.Sequence(func() tea.Msg {
+					note, err := control.Kill(a)
+					return actionMsg{err: err, notice: note}
+				}, load)
 			},
 		}
 		return m, nil
@@ -381,4 +386,39 @@ func addProject(m model, name string, rest []string) (model, tea.Cmd) {
 
 func cmdQuit(m model, _ string) (model, tea.Cmd) {
 	return m, tea.Quit
+}
+
+func cmdRestart(m model, _ string) (model, tea.Cmd) {
+	return withSelected(m, func(a agents.Live) (model, tea.Cmd) {
+		m.confirm = &confirmation{
+			prompt: "restart " + name(a) + "? (y/N)",
+			run: func(m model) (model, tea.Cmd) {
+				m.actionErr = control.Restart(a)
+				if m.actionErr == nil {
+					m.notice = "✓ restarted " + name(a)
+				}
+				return m, load
+			},
+		}
+		return m, nil
+	})
+}
+
+func cmdClean(m model, _ string) (model, tea.Cmd) {
+	dirs := make([]string, 0, len(m.projects)+len(m.all))
+	for _, p := range m.projects {
+		dirs = append(dirs, paths.Expand(p.Dir))
+	}
+	for _, a := range m.all {
+		dirs = append(dirs, a.Pane.Cwd)
+	}
+	live := slices.Clone(m.all)
+	return m, func() tea.Msg {
+		removed, kept := control.CleanWorktrees(dirs, live)
+		notice := fmt.Sprintf("✓ removed %d worktree(s)", removed)
+		if len(kept) > 0 {
+			notice += ", kept " + strings.Join(kept, ", ")
+		}
+		return actionMsg{notice: notice}
+	}
 }

@@ -20,7 +20,8 @@ cockpit new [--mode code|review|bug|chat] [--agent claude|codex|opencode] \
                                    # prints the new pane id
 cockpit send TARGET "text"         # or: ... | cockpit send TARGET -
 cockpit stop TARGET                # interrupt (Esc)
-cockpit kill TARGET                # close pane (+ its editor pane; deletes a chat's temp folder)
+cockpit kill TARGET                # close pane (+ its editor pane; deletes a chat's temp folder, and its worktree + branch if they hold no changes)
+cockpit restart TARGET             # relaunch in the same pane resuming its session (fixes "MCP down")
 cockpit label TARGET [TEXT]        # no TEXT clears
 cockpit fav [TARGET | resume N|LABEL|NAME | rm N]
 cockpit restore                    # resume agents from last snapshot
@@ -44,5 +45,5 @@ Statuses in JSON: `working`, `background`, `needs_input`, `done`, `idle`.
 
 - Find this session's own pane first (`$TMUX_PANE`) and never send/stop/kill it.
 - `list`, `project list` and `fav` (no args) are read-only - run freely.
-- `new`, `send`, `stop`, `kill`, `label`, `fav TARGET`, `restore` and `project add/rm` affect other sessions - confirm with the user first unless they explicitly asked for that action. Always confirm before `kill`.
+- `new`, `send`, `stop`, `kill`, `restart`, `label`, `fav TARGET`, `restore` and `project add/rm` affect other sessions - confirm with the user first unless they explicitly asked for that action. Always confirm before `kill` and `restart`.
 - Resolve the target from `list --json` before acting; if a label or name is ambiguous, use the pane id.

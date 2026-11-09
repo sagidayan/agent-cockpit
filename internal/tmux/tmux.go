@@ -256,3 +256,8 @@ func Names(pane string) (label, window string, err error) {
 	label, window, _ = strings.Cut(strings.TrimRight(out, "\n"), "\t")
 	return label, window, nil
 }
+
+func Respawn(pane, dir, command string) error {
+	_, err := run("respawn-pane", "-k", "-t", pane, "-c", dir, command)
+	return err
+}

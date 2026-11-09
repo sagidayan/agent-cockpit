@@ -93,7 +93,7 @@ func TestHelpHints(t *testing.T) {
 		{"needs input", agents.Live{Agent: state.Agent{Status: state.NeedsInput}}, "p answer", true},
 		{"working", agents.Live{Agent: state.Agent{Status: state.Working}}, "p answer", false},
 		{"idle", agents.Live{Agent: state.Agent{Status: state.Idle}}, "p answer", false},
-		{"claude with MCP down", agents.Live{Agent: state.Agent{Kind: "claude"}, MCPDown: true}, "type /mcp in the agent", true},
+		{"claude with MCP down", agents.Live{Agent: state.Agent{Kind: "claude"}, MCPDown: true}, ":restart", true},
 		{"MCP up", agents.Live{Agent: state.Agent{Kind: "claude"}}, "MCP down", false},
 	}
 	for _, tc := range cases {

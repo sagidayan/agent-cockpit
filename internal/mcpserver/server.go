@@ -86,7 +86,7 @@ func newServer() *mcp.Server {
 	}, getOutput)
 	addTool(s, &mcp.Tool{
 		Name:        "close_agent",
-		Description: "Close a child agent you spawned, and any agents it spawned, once its work is done and reviewed. Kills its tmux pane; it cannot be undone. Only works on your own children.",
+		Description: "Close a child agent you spawned, and any agents it spawned, once its work is done and reviewed. Kills its tmux pane; it cannot be undone. Its worktree and branch are removed if they hold no changes, else kept. Only works on your own children.",
 	}, closeAgent)
 	addTool(s, &mcp.Tool{
 		Name:        "get_diff",

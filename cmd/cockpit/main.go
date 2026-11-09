@@ -28,6 +28,7 @@ const usage = `usage: cockpit <command>
   list [--json]        list running agents
   send TARGET TEXT...  send a prompt (TEXT - reads stdin)
   stop|kill TARGET     interrupt / close an agent
+  restart TARGET       relaunch an agent in its pane, resuming its session
   label TARGET [TEXT]  label an agent (no TEXT clears)
   fav [TARGET | resume N|LABEL|NAME | rm N]
                        list, toggle, resume or remove favorites

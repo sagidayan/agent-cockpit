@@ -139,3 +139,77 @@ func TestOrigin(t *testing.T) {
 		require.Equal(t, tc.want, Origin(tc.in), tc.in)
 	}
 }
+
+func TestRemove(t *testing.T) {
+	t.Parallel()
+	write := func(name string) func(t *testing.T, wt string) {
+		return func(t *testing.T, wt string) {
+			require.NoError(t, os.WriteFile(filepath.Join(wt, name), []byte("x\n"), 0o644))
+		}
+	}
+	cases := []struct {
+		name     string
+		change   func(t *testing.T, wt string)
+		wantKept string
+	}{
+		{"untouched", func(*testing.T, string) {}, ""},
+		{"ignored file", write("build.out"), ""},
+		{"untracked file", write("new.txt"), "uncommitted changes"},
+		{"modified file", write("sub/a.txt"), "uncommitted changes"},
+		{"own commit", func(t *testing.T, wt string) { run(t, wt, "commit", "-q", "--allow-empty", "-m", "work") }, "commits not on another branch"},
+		{
+			"commit also on another branch",
+			func(t *testing.T, wt string) {
+				run(t, wt, "commit", "-q", "--allow-empty", "-m", "work")
+				run(t, wt, "branch", "keep")
+			},
+			"",
+		},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			r := repo(t)
+			require.NoError(t, os.WriteFile(filepath.Join(r, ".gitignore"), []byte("*.out\n"), 0o644))
+			run(t, r, "add", ".")
+			run(t, r, "commit", "-qm", "ignore")
+			path, err := Create(r, "fix")
+			require.NoError(t, err)
+			tc.change(t, path)
+			w, ok := Of(filepath.Join(path, "sub"))
+			require.True(t, ok)
+			require.Equal(t, Worktree{Repo: r, Path: path, Branch: "cockpit/fix"}, w)
+
+			kept, err := Remove(w)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantKept, kept)
+			require.Equal(t, tc.wantKept != "", exists(path))
+			require.Equal(t, tc.wantKept != "", hasBranch(r, "cockpit/fix"))
+		})
+	}
+}
+
+func TestOf(t *testing.T) {
+	t.Parallel()
+	r := repo(t)
+	other := filepath.Join(filepath.Dir(r), "other")
+	run(t, r, "worktree", "add", "-q", "-b", "feature", other)
+	cases := []struct {
+		name string
+		dir  string
+		want bool
+	}{
+		{"main checkout", r, false},
+		{"non-cockpit worktree", other, false},
+		{"plain folder", t.TempDir(), false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, ok := Of(tc.dir)
+			require.Equal(t, tc.want, ok)
+		})
+	}
+}

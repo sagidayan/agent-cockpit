@@ -18,6 +18,7 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/snapshot"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
+	"github.com/sagidayan/agent-cockpit/internal/worktree"
 )
 
 const (
@@ -160,7 +161,7 @@ func Stop(a agents.Live) error {
 	return tmux.SendKeys(a.ID, "Escape")
 }
 
-func Kill(a agents.Live) error {
+func Kill(a agents.Live) (string, error) {
 	handOver(a)
 	_ = state.AddClosed(record(a))
 	editors, _ := tmux.PanesWithOption(editorOption, a.ID)
@@ -169,12 +170,73 @@ func Kill(a agents.Live) error {
 	}
 	_ = state.Remove(a.ID)
 	if err := tmux.Kill(a.ID); err != nil {
-		return err
+		return "", err
 	}
 	if paths.IsChat(a.Pane.Cwd) {
-		return os.RemoveAll(a.Pane.Cwd)
+		return "", os.RemoveAll(a.Pane.Cwd)
 	}
-	return nil
+	w, ok := worktree.Of(a.Pane.Cwd)
+	if !ok {
+		return "", nil
+	}
+	live, err := agents.List()
+	if err != nil {
+		return "", err
+	}
+	if inUse(w, live) {
+		return "kept worktree " + paths.Contract(w.Path) + ", another agent is using it", nil
+	}
+	return clean(w)
+}
+
+func inUse(w worktree.Worktree, live []agents.Live) bool {
+	return slices.ContainsFunc(live, func(a agents.Live) bool { return worktree.Within(a.Pane.Cwd, w.Path) })
+}
+
+func clean(w worktree.Worktree) (string, error) {
+	kept, err := worktree.Remove(w)
+	switch {
+	case err != nil:
+		return "", err
+	case kept != "":
+		return fmt.Sprintf("kept worktree %s and branch %s: %s", paths.Contract(w.Path), w.Branch, kept), nil
+	}
+	return fmt.Sprintf("removed worktree %s and branch %s", paths.Contract(w.Path), w.Branch), nil
+}
+
+func CleanWorktrees(dirs []string, live []agents.Live) (removed int, kept []string) {
+	seen := map[string]bool{}
+	for _, dir := range dirs {
+		all, _ := worktree.List(dir)
+		for _, w := range all {
+			if seen[w.Path] || inUse(w, live) {
+				continue
+			}
+			seen[w.Path] = true
+			msg, err := worktree.Remove(w)
+			if err == nil && msg == "" {
+				removed++
+				continue
+			}
+			kept = append(kept, fmt.Sprintf("%s (%s)", paths.Contract(w.Path), cmp.Or(msg, fmt.Sprint(err))))
+		}
+	}
+	return removed, kept
+}
+
+func Restart(a agents.Live) error {
+	if a.SessionID == "" {
+		return fmt.Errorf("no session recorded for this %s agent, cannot resume it", a.Kind)
+	}
+	command := launch.Command(a.Kind, a.SessionID)
+	if command == "" {
+		return fmt.Errorf("unknown agent %q", a.Kind)
+	}
+	if err := tmux.Respawn(a.ID, a.Pane.Cwd, command); err != nil {
+		return err
+	}
+	a.Status, a.Message, a.Prompt = state.Idle, "", ""
+	return state.Save(a.Agent)
 }
 
 func record(a agents.Live) state.Closed {

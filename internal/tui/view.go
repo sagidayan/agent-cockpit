@@ -747,10 +747,7 @@ func totalCost(live []agents.Live) float64 {
 	return total
 }
 
-var reconnectHints = map[string]string{
-	"claude":   "MCP down: type /mcp in the agent, pick cockpit, reconnect",
-	"opencode": "MCP down: restart the agent to reconnect",
-}
+const reconnectHint = "MCP down: run :restart for a fresh server"
 
 func (m model) help() string {
 	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"gt", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
@@ -758,7 +755,7 @@ func (m model) help() string {
 		keys = slices.Insert(keys, 2, [2]string{"p", "answer"})
 	}
 	if a, ok := m.selected(); ok && a.MCPDown {
-		keys = slices.Insert(keys, 0, [2]string{"⚠", reconnectHints[a.Kind]})
+		keys = slices.Insert(keys, 0, [2]string{"⚠", reconnectHint})
 	}
 	switch {
 	case m.question != nil:

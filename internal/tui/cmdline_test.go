@@ -23,8 +23,12 @@ func TestLookup(t *testing.T) {
 		{"q", "quit", ""},
 		{"b", "broadcast", ""},
 		{"sh", "shell", ""},
-		{"cl", "closed", ""},
+		{"clo", "closed", ""},
+		{"cle", "clean", ""},
+		{"cl", "", "ambiguous"},
 		{"gr", "group", ""},
+		{"rest", "", "ambiguous"},
+		{"resta", "restart", ""},
 		{"s", "", "ambiguous"},
 		{"nope", "", "unknown"},
 	}

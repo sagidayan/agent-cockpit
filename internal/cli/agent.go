@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -30,7 +31,19 @@ func kill(args []string) error {
 	if err != nil {
 		return err
 	}
-	return control.Kill(a)
+	note, err := control.Kill(a)
+	if note != "" {
+		fmt.Println(note)
+	}
+	return err
+}
+
+func restart(args []string) error {
+	a, err := one(args)
+	if err != nil {
+		return err
+	}
+	return control.Restart(a)
 }
 
 func label(args []string) error {

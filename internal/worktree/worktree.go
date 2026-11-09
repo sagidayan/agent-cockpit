@@ -105,3 +105,67 @@ func git(dir string, args ...string) (string, error) {
 	}
 	return string(out), nil
 }
+
+type Worktree struct {
+	Repo, Path, Branch string
+}
+
+func List(dir string) ([]Worktree, error) {
+	root, err := mainRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	out, err := git(root, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	var all []Worktree
+	for block := range strings.SplitSeq(out, "\n\n") {
+		if w, ok := parse(root, block); ok {
+			all = append(all, w)
+		}
+	}
+	return all, nil
+}
+
+func parse(root, block string) (Worktree, bool) {
+	w := Worktree{Repo: root}
+	for line := range strings.SplitSeq(block, "\n") {
+		if p, ok := strings.CutPrefix(line, "worktree "); ok {
+			w.Path = filepath.Clean(p)
+		}
+		if b, ok := strings.CutPrefix(line, "branch refs/heads/"); ok {
+			w.Branch = b
+		}
+	}
+	return w, w.Path != root && strings.HasPrefix(w.Branch, branchPrefix)
+}
+
+func Of(dir string) (Worktree, bool) {
+	all, _ := List(dir)
+	for _, w := range all {
+		if Within(dir, w.Path) {
+			return w, true
+		}
+	}
+	return Worktree{}, false
+}
+
+func Within(dir, root string) bool {
+	return dir == root || strings.HasPrefix(dir, root+string(filepath.Separator))
+}
+
+func Remove(w Worktree) (kept string, err error) {
+	if out, err := git(w.Path, "status", "--porcelain"); err != nil || out != "" {
+		return "uncommitted changes", err
+	}
+	out, err := git(w.Repo, "rev-list", "-n1", w.Branch, "--not", "--exclude="+w.Branch, "--branches")
+	if err != nil || out != "" {
+		return "commits not on another branch", err
+	}
+	if _, err := git(w.Repo, "worktree", "remove", w.Path); err != nil {
+		return "", err
+	}
+	_, err = git(w.Repo, "branch", "-D", w.Branch)
+	return "", err
+}

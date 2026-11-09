@@ -86,6 +86,8 @@ Commands:
 | `:broadcast <text>` | send a prompt to every listed agent (combine with `/` to target a subset) |
 | `:stop` | interrupt the selected agent (Esc) |
 | `:kill` | close the selected agent's pane (asks to confirm) |
+| `:restart` | close the selected agent and relaunch it in the same pane, resuming its session (asks to confirm). Label, parent, mode and children are kept |
+| `:clean` | remove leftover cockpit [worktrees](#worktrees) with no live agent and no changes; reports the ones it kept |
 | `:rename [name]` | label the agent in cockpit (same as `r`) |
 | `:sort status\|recent\|name\|cost\|location` | change the list order (favorites always stay on top); `location` is your own order |
 | `:project [add <name> [dir] \| rm <name>]` | list or manage projects (dir defaults to the selected agent's) |
@@ -102,7 +104,7 @@ Mouse: click a card to view it, double-click to interact, scroll to move through
 
 Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, done, idle.
 
-A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer says how to reconnect: `/mcp` → cockpit → reconnect in claude, a restart in opencode. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`, rotated to `mcp.log.1` past 1 MiB. Codex isn't checked: by default it runs MCP servers under its shared background daemon, outside the agent's process tree.
+A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer points at `:restart` (or `cockpit restart TARGET`), which relaunches the agent on the same session with a fresh server. It needs a recorded session id, which the hooks store once the agent has started. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`, rotated to `mcp.log.1` past 1 MiB. Codex isn't checked: by default it runs MCP servers under its shared background daemon, outside the agent's process tree.
 
 When the cockpit pane loses focus its header dims and shows "viewer has focus". This needs `set -g focus-events on` in your tmux config.
 
@@ -120,6 +122,7 @@ cockpit list                      # children indented under their parent; or --j
 cockpit send refunds "also add a regression test"
 git diff | cockpit send %12 -     # - reads stdin
 cockpit stop refunds; cockpit kill refunds
+cockpit restart refunds           # relaunch in the same pane, resuming its session
 cockpit label %12 reviewer        # no text clears
 cockpit fav refunds               # toggle; `cockpit fav` lists, `fav resume 1`, `fav rm 1`
 cockpit restore                   # bring back agents from last time (with their children)
@@ -182,12 +185,11 @@ A coding or bug-fix agent can run in its own git worktree, so several agents can
 
 The worktree is created at `<repo>-worktrees/<slug>` next to the main checkout, on a new `cockpit/<slug>` branch from the chosen folder's current HEAD. The slug comes from the label, else the session name, else the folder name. If the folder or branch already exists, `-2`, `-3`, ... is appended.
 
-`kill` leaves worktrees and branches alone since they may hold unmerged work. Clean up by hand once merged:
+Closing the agent (`:kill`, `cockpit kill` or `close_agent`) removes its worktree and deletes its branch when it has no uncommitted or untracked changes and no commits that aren't on another local branch. Otherwise both are kept and the result says so. `:clean` does the same for leftover cockpit worktrees with no live agent, in the repos of your projects and of running agents. Remove kept ones by hand once merged:
 
 ```sh
-git worktree list
 git worktree remove ../payments-service-worktrees/refunds
-git branch -d cockpit/refunds   # -D if it was never merged
+git branch -d cockpit/refunds
 ```
 
 ## Restore
