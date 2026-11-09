@@ -67,7 +67,7 @@ func TestCompose(t *testing.T) {
 func TestSummary(t *testing.T) {
 	t.Parallel()
 	long := strings.Repeat("word ", 60)
-	got := summary(long)
+	got := Summary(long)
 	if !strings.HasSuffix(got, "…") || len([]rune(got)) > maxBody+1 || strings.Contains(got, "wor…") {
 		t.Fatalf("bad summary %q", got)
 	}

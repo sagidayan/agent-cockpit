@@ -37,7 +37,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `review_agent` (spawns a read-only reviewer of an agent's changes as your child; forward its findings with `send_task`), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn. When a child finishes or needs input and its claude parent isn't blocked in `wait_for_agent` on it, cockpit types a `[cockpit] child %12 (label) is done: ...` line into the parent's pane (turn off with `[spawn] notify_parent = false`).
 
 ## Skill
 
@@ -240,6 +240,7 @@ width = "50%"
 
 [spawn]
 max_depth = 3   # agent tree levels (agent -> child -> grandchild); 0 = no limit
+notify_parent = true   # type a line into a claude parent's pane when a child finishes
 
 [budget]
 tree_usd = 0   # warn when an agent tree's total cost passes this (USD); 0 = off

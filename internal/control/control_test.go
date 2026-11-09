@@ -140,3 +140,24 @@ func TestCleanWorktrees(t *testing.T) {
 	require.NoDirExists(t, clean)
 	require.DirExists(t, busy)
 }
+
+func TestReport(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		a     state.Agent
+		label string
+		want  string
+	}{
+		{"done with label", state.Agent{Pane: "%12", Status: state.Done, Message: "Fixed the **retry** bug."}, "billing", "[cockpit] child %12 (billing) is done: Fixed the retry bug. Read it with get_output / get_diff."},
+		{"needs input without label", state.Agent{Pane: "%3", Status: state.NeedsInput, Message: "Claude needs your permission to use Bash"}, "", "[cockpit] child %3 needs input: Claude needs your permission to use Bash. Read it with get_output and answer with send_task."},
+		{"done without message", state.Agent{Pane: "%4", Status: state.Done}, "", "[cockpit] child %4 is done. Read it with get_output / get_diff."},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, report(tc.a, tc.label))
+		})
+	}
+}

@@ -226,6 +226,23 @@ func SetPaneOption(pane, name, value string) error {
 	return err
 }
 
+func UnsetPaneOption(pane, name string) error {
+	_, err := run("set-option", "-p", "-u", "-t", pane, name)
+	return err
+}
+
+func PaneOptions(pane string, names ...string) ([]string, error) {
+	out, err := run("display-message", "-p", "-t", pane, "#{"+strings.Join(names, "}\t#{")+"}")
+	if err != nil {
+		return nil, err
+	}
+	values := strings.SplitN(strings.TrimRight(out, "\n"), "\t", len(names))
+	if len(values) != len(names) {
+		return nil, fmt.Errorf("tmux: want %d options for %s, got %q", len(names), pane, out)
+	}
+	return values, nil
+}
+
 func PanesWithOption(name, value string) ([]string, error) {
 	out, err := run("list-panes", "-a", "-F", "#{pane_id}\t#{"+name+"}")
 	if err != nil {

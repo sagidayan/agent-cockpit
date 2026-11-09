@@ -3,12 +3,14 @@ package mcpserver
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sagidayan/agent-cockpit/internal/agents"
 	"github.com/sagidayan/agent-cockpit/internal/changes"
+	"github.com/sagidayan/agent-cockpit/internal/control"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 )
@@ -130,6 +132,7 @@ func waitForAgent(ctx context.Context, _ *mcp.CallToolRequest, in waitArgs) (*mc
 	if err != nil {
 		return nil, agentInfo{}, err
 	}
+	defer control.Waiting(in.Pane, os.Getenv("TMUX_PANE"))()
 	deadline := time.After(time.Duration(waitSeconds(in.TimeoutSeconds)) * time.Second)
 	tick := time.NewTicker(time.Second)
 	defer tick.Stop()

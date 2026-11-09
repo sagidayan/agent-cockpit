@@ -7,7 +7,7 @@ description: Drive other coding agents (claude, codex, opencode) running in tmux
 
 `cockpit` drives coding agents running in tmux. `TARGET` = pane id (`%12`), label, or window name.
 
-If the `cockpit` MCP server is connected, prefer its tools (`list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `close_agent`) - agents spawned that way become children of this session, and any agent can spawn its own. Close a child with `close_agent` (or `cockpit kill`) once its work is done and reviewed. Otherwise use the CLI below.
+If the `cockpit` MCP server is connected, prefer its tools (`list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `review_agent`, `close_agent`) - agents spawned that way become children of this session, and any agent can spawn its own. Close a child with `close_agent` (or `cockpit kill`) once its work is done and reviewed. Otherwise use the CLI below.
 
 ## Commands
 

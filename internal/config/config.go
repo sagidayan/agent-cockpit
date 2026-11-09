@@ -22,7 +22,8 @@ type Config struct {
 }
 
 type Spawn struct {
-	MaxDepth int `toml:"max_depth"`
+	MaxDepth     int  `toml:"max_depth"`
+	NotifyParent bool `toml:"notify_parent"`
 }
 
 type Budget struct {
@@ -66,7 +67,7 @@ func Default() Config {
 		},
 		UI:     UI{Icons: true},
 		Editor: Editor{Command: "nvim", Width: "50%"},
-		Spawn:  Spawn{MaxDepth: 3},
+		Spawn:  Spawn{MaxDepth: 3, NotifyParent: true},
 	}
 }
 

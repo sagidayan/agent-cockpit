@@ -58,6 +58,8 @@ func newServer() *mcp.Server {
 			"Run children in parallel when you can. When several work in the same repo at once, pass worktree: true so each gets its own branch, and name the branches in your report. " +
 			"A child can spawn its own children for a large chunk. " +
 			"Close each child with close_agent once its work is done and reviewed, and close all your children before you report back. " +
+			"Review loop: when a child finishes, review_agent on it spawns a read-only reviewer of its changes; wait_for_agent on the reviewer, forward its findings to the child with send_task, and repeat until the review is clean. " +
+			"When a child you are not waiting on finishes or needs input, cockpit types a [cockpit] line into your pane; read it with get_output. " +
 			"Existing agents: list_agents to pick an idle one, then send_task.",
 	})
 	addTool(s, &mcp.Tool{
@@ -84,6 +86,10 @@ func newServer() *mcp.Server {
 		Name:        "get_output",
 		Description: "Get the agent's last reported message plus the recent visible text of its terminal pane. Use after wait_for_agent to read what it did or what it is asking.",
 	}, getOutput)
+	addTool(s, &mcp.Tool{
+		Name:        "review_agent",
+		Description: "Spawn a read-only reviewer as your child, in the agent's folder, to review that agent's changes in every repo it touched and report verified findings by severity with file:line. Follow with wait_for_agent and get_output on the reviewer, forward the findings to the agent with send_task, then close the reviewer.",
+	}, reviewAgent)
 	addTool(s, &mcp.Tool{
 		Name:        "close_agent",
 		Description: "Close a child agent you spawned, and any agents it spawned, once its work is done and reviewed. Kills its tmux pane; it cannot be undone. Its worktree and branch are removed if they hold no changes, else kept. Only works on your own children.",

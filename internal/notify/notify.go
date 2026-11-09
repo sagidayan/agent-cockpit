@@ -42,19 +42,16 @@ func Wanted(cfg config.Notify, prev, cur state.Agent) bool {
 	return changed && slices.Contains(cfg.Events, cur.Status)
 }
 
-func Record(pane string, change func(prev state.Agent) (state.Agent, bool)) error {
+func Record(pane string, change func(prev state.Agent) (state.Agent, bool)) (prev, cur state.Agent, err error) {
 	prev, cur, saved, err := state.Update(pane, change)
 	if err != nil || !saved {
-		return err
+		return prev, cur, err
 	}
 	cfg, err := config.Load()
-	if err != nil {
-		return err
+	if err != nil || !Wanted(cfg.Notify, prev, cur) {
+		return prev, cur, err
 	}
-	if !Wanted(cfg.Notify, prev, cur) {
-		return nil
-	}
-	return Send(cfg.Notify, cur)
+	return prev, cur, Send(cfg.Notify, cur)
 }
 
 func Send(cfg config.Notify, a state.Agent) error {
@@ -139,7 +136,7 @@ func compose(a state.Agent, id identity) note {
 		context += " · " + place
 	}
 	body := context
-	if msg := summary(cmp.Or(a.Message, a.Prompt)); msg != "" {
+	if msg := Summary(cmp.Or(a.Message, a.Prompt)); msg != "" {
 		body = msg + "\n" + context
 	}
 	return note{who, title, body}
@@ -154,7 +151,7 @@ func friendlyName(a state.Agent, id identity) string {
 	return cmp.Or(id.label, id.project, window, filepath.Base(a.Cwd), agentNames[a.Kind], "Your agent")
 }
 
-func summary(msg string) string {
+func Summary(msg string) string {
 	text := strings.Join(strings.Fields(markdown.ReplaceAllString(msg, "")), " ")
 	if len([]rune(text)) <= maxBody {
 		return text

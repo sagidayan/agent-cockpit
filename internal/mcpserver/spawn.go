@@ -63,6 +63,10 @@ func spawnAgent(_ context.Context, _ *mcp.CallToolRequest, in spawnArgs) (*mcp.C
 	if err != nil {
 		return nil, spawnResult{}, err
 	}
+	return start(r)
+}
+
+func start(r control.Request) (*mcp.CallToolResult, spawnResult, error) {
 	session, err := control.Session()
 	if err != nil {
 		return nil, spawnResult{}, err

@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/sagidayan/agent-cockpit/internal/control"
 	"github.com/sagidayan/agent-cockpit/internal/notify"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 )
@@ -64,9 +65,10 @@ func record(kind, pane string, args []string) error {
 }
 
 func update(a state.Agent) error {
-	return notify.Record(a.Pane, func(prev state.Agent) (state.Agent, bool) {
+	prev, cur, err := notify.Record(a.Pane, func(prev state.Agent) (state.Agent, bool) {
 		return merge(prev, a), true
 	})
+	return errors.Join(err, control.Report(prev, cur))
 }
 
 func merge(prev, a state.Agent) state.Agent {

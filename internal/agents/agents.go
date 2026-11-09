@@ -49,7 +49,7 @@ func List() ([]Live, error) {
 func Settle(a state.Agent) state.Agent {
 	s := transcript.Settle(a)
 	if s.Status != a.Status {
-		_ = notify.Record(a.Pane, settled)
+		_, _, _ = notify.Record(a.Pane, settled)
 	}
 	return s
 }
