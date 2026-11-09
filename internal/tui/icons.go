@@ -27,6 +27,7 @@ var nerdIcons = iconSet{
 		state.NeedsInput: "\U000F009E",
 		state.Done:       "\U000F05E0",
 		state.Idle:       "\U000F04B2",
+		state.Paused:     "\U000F03E4",
 	},
 }
 
@@ -43,6 +44,7 @@ var plainIcons = iconSet{
 		state.NeedsInput: "◆",
 		state.Done:       "✓",
 		state.Idle:       "○",
+		state.Paused:     "‖",
 	},
 }
 

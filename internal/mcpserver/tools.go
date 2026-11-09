@@ -117,13 +117,10 @@ func sendTask(_ context.Context, _ *mcp.CallToolRequest, in sendArgs) (*mcp.Call
 	if err != nil {
 		return nil, agentInfo{}, err
 	}
-	if err := tmux.SendText(in.Pane, in.Prompt); err != nil {
+	if err := control.Send(l, in.Prompt); err != nil {
 		return nil, agentInfo{}, err
 	}
-	l.Status, l.Prompt, l.Message = state.Working, in.Prompt, ""
-	if err := state.Save(l.Agent); err != nil {
-		return nil, agentInfo{}, err
-	}
+	l.Status, l.Prompt, l.Message, l.Paused = state.Working, in.Prompt, "", false
 	return nil, toInfo(l), nil
 }
 
@@ -147,7 +144,7 @@ func waitForAgent(ctx context.Context, _ *mcp.CallToolRequest, in waitArgs) (*mc
 		if l.Agent, err = state.Load(in.Pane); err != nil {
 			return nil, agentInfo{}, err
 		}
-		l.Agent = agents.Settle(l.Agent)
+		l.Agent = agents.Current(l.Agent)
 	}
 	return nil, toInfo(l), nil
 }

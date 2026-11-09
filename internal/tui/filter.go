@@ -10,7 +10,7 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/state"
 )
 
-var statusRank = map[state.Status]int{state.NeedsInput: 0, state.Working: 1, state.Background: 2, state.Done: 3, state.Idle: 4}
+var statusRank = map[state.Status]int{state.NeedsInput: 0, state.Working: 1, state.Background: 2, state.Paused: 3, state.Done: 4, state.Idle: 5}
 
 func rank(s state.Status) int {
 	if r, ok := statusRank[s]; ok {

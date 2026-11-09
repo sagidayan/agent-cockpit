@@ -74,6 +74,7 @@ var badges = map[state.Status]badge{
 	state.NeedsInput: {"needs input", attentionLoud},
 	state.Done:       {"done", lipgloss.NewStyle().Foreground(success)},
 	state.Idle:       {"idle", mutedStyle},
+	state.Paused:     {"paused", lipgloss.NewStyle().Foreground(lipgloss.Color("#B4A7D6"))},
 }
 
 func badgeFor(s state.Status) badge {
@@ -214,7 +215,7 @@ func (m model) statusChips(labels bool) string {
 		counts[a.Status]++
 	}
 	var parts []string
-	for _, s := range []state.Status{state.NeedsInput, state.Working, state.Background, state.Done, state.Idle} {
+	for _, s := range []state.Status{state.NeedsInput, state.Working, state.Background, state.Paused, state.Done, state.Idle} {
 		if counts[s] == 0 {
 			continue
 		}
@@ -503,7 +504,7 @@ func (m model) helpView() string {
 	keys := [][2]string{
 		{"j/k ↑↓", "move"}, {"gg G", "first / last (also home/end)"}, {"J/K", "move the agent down / up the list (also pgdn/pgup)"}, {"1-9", "jump to agent"},
 		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
-		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "hand the agent to cockpit (moves it into the cockpit session)"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
+		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "hand the agent to cockpit (moves it into the cockpit session)"}, {"z", "pause / resume the agent and its children"}, {"Z", "pause everything working / resume all paused"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
 		{"x", "dismiss restore"}, {"?", "this help"}, {"q", "quit"},
@@ -763,7 +764,7 @@ func totalCost(live []agents.Live) float64 {
 const reconnectHint = "MCP down: run :restart for a fresh server"
 
 func (m model) help() string {
-	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"gt", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
+	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"gt", "go-to"}, {"d", "diff"}, {"z", "pause"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
 	if a, ok := m.selected(); ok && canAnswer(a) {
 		keys = slices.Insert(keys, 2, [2]string{"p", "answer"})
 	}

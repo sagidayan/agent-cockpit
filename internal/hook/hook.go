@@ -74,6 +74,7 @@ func update(a state.Agent) error {
 func merge(prev, a state.Agent) state.Agent {
 	if prev.Kind == a.Kind {
 		a.Touched, a.ClosedCost, a.BudgetWarned = prev.Touched, prev.ClosedCost, prev.BudgetWarned
+		a.Paused = prev.Paused && !(a.Status == state.Working && a.Prompt != "")
 	}
 	if prev.Kind == a.Kind && (a.SessionID == "" || a.SessionID == prev.SessionID) {
 		a.SessionID = prev.SessionID

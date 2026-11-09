@@ -20,6 +20,7 @@ const (
 	NeedsInput Status = "needs_input"
 	Done       Status = "done"
 	Idle       Status = "idle"
+	Paused     Status = "paused"
 )
 
 type Agent struct {
@@ -33,6 +34,7 @@ type Agent struct {
 	Touched      []string  `json:"touched,omitempty"`
 	ClosedCost   float64   `json:"closed_cost_usd,omitempty"`
 	BudgetWarned bool      `json:"budget_warned,omitempty"`
+	Paused       bool      `json:"paused,omitempty"`
 	Server       string    `json:"server,omitempty"`
 	SessionID    string    `json:"session_id,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`

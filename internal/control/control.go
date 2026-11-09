@@ -2,6 +2,7 @@ package control
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -29,7 +30,12 @@ const (
 
 type Request struct {
 	Kind, Dir, Name, Prompt, ResumeID, Label, Mode, Parent string
+	Paused                                                 bool
 }
+
+const escapeGap = 150 * time.Millisecond
+
+const resumeNote = "[cockpit] You were paused from the cockpit dashboard, not interrupted by the user. Continue where you left off."
 
 func Session() (string, error) {
 	return tmux.Session, tmux.EnsureSession()
@@ -62,7 +68,7 @@ func Spawn(session string, r Request) (string, error) {
 	setOption(pane, tmux.AgentOption, "1")
 	setOption(pane, modeOption, r.Mode)
 	setOption(pane, parentOption, r.Parent)
-	_ = state.Save(state.Agent{Pane: pane, Kind: r.Kind, Cwd: r.Dir, Status: state.Idle, SessionID: r.ResumeID})
+	_ = state.Save(state.Agent{Pane: pane, Kind: r.Kind, Cwd: r.Dir, Status: state.Idle, SessionID: r.ResumeID, Paused: r.Paused})
 	if r.Mode != "" && r.Mode != "code" {
 		return pane, nil
 	}
@@ -97,7 +103,7 @@ func resumeOne(session string, e snapshot.Entry, parent string, live []agents.Li
 	}
 	return Spawn(session, Request{
 		Kind: e.Kind, Dir: e.Dir, Name: cmp.Or(e.Name, filepath.Base(e.Dir)),
-		ResumeID: e.SessionID, Label: e.Label, Mode: e.Mode, Parent: parent,
+		ResumeID: e.SessionID, Label: e.Label, Mode: e.Mode, Parent: parent, Paused: e.Paused,
 	})
 }
 
@@ -156,12 +162,58 @@ func Send(a agents.Live, text string) error {
 	if err := tmux.SendText(a.ID, text); err != nil {
 		return err
 	}
-	a.Status, a.Prompt, a.Message = state.Working, text, ""
-	return state.Save(a.Agent)
+	_, _, _, err := state.Update(a.ID, func(p state.Agent) (state.Agent, bool) {
+		if p.Pane == "" {
+			p = a.Agent
+		}
+		p.Status, p.Prompt, p.Message, p.Paused = state.Working, text, "", false
+		return p, true
+	})
+	return err
 }
 
 func Stop(a agents.Live) error {
-	return tmux.SendKeys(a.ID, "Escape")
+	for i := range escapes(a.Kind) {
+		if i > 0 {
+			time.Sleep(escapeGap)
+		}
+		if err := tmux.SendKeys(a.ID, "Escape"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func escapes(kind string) int {
+	if kind == "opencode" {
+		return 2
+	}
+	return 1
+}
+
+func Pause(a agents.Live) error {
+	if err := markPaused(a.ID, true); err != nil {
+		return err
+	}
+	if err := Stop(a); err != nil {
+		return errors.Join(err, markPaused(a.ID, false))
+	}
+	return nil
+}
+
+func markPaused(pane string, paused bool) error {
+	_, _, _, err := state.Update(pane, func(p state.Agent) (state.Agent, bool) {
+		if p.Pane == "" {
+			return p, false
+		}
+		p.Paused = paused
+		return p, true
+	})
+	return err
+}
+
+func Continue(a agents.Live) error {
+	return Send(a, resumeNote)
 }
 
 func Kill(a agents.Live) (string, error) {
@@ -241,8 +293,14 @@ func Restart(a agents.Live) error {
 	if err := tmux.Respawn(a.ID, a.Pane.Cwd, command); err != nil {
 		return err
 	}
-	a.Status, a.Message, a.Prompt = state.Idle, "", ""
-	return state.Save(a.Agent)
+	_, _, _, err := state.Update(a.ID, func(p state.Agent) (state.Agent, bool) {
+		if p.Pane == "" {
+			p = a.Agent
+		}
+		p.Status, p.Message, p.Prompt = state.Idle, "", ""
+		return p, true
+	})
+	return err
 }
 
 func record(a agents.Live) state.Closed {

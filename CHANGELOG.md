@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.6
+
+- Pause and resume: `z` pauses the selected agent and its children (interrupts the working ones and marks them **⏸ paused**), `z` again resumes them with a note that cockpit paused them. `Z` pauses everything working, or resumes all paused. A cockpit pause is kept apart from an interrupt you make inside the agent, and survives restore.
+- Fix: `:stop` and pause now interrupt opencode, which needs Esc twice.
+- Fix: sending a prompt or restarting an agent no longer overwrites newer saved state, such as repos handed over by a closed child.
+
 ## v0.0.5
 
 - Fix: returning from `gt` now unlinks the agent's window from your session even when its editor pane is the active one.

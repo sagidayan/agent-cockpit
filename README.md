@@ -69,6 +69,8 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `gt` | go-to: show the agent's window in your current session (linked from its own session, unlinked when you return to the cockpit) |
 | `d` | review the agent's changes in your editor (see `:diff`) |
 | `m` | hand the agent and its children to cockpit: each agent pane moves into the `cockpit` session (its whole window if it is alone there, else just the pane, so your other panes stay put) and becomes managed |
+| `z` | pause the agent and its children: each working one is interrupted (Esc) and marked **⏸ paused**. `z` again resumes them with a note that the pause came from cockpit. Useful before closing the laptop; a paused agent stays paused across restore |
+| `Z` | pause every working agent; once nothing is working, resume all paused ones |
 | `s` | send a prompt without leaving the list |
 | `p` | answer a permission prompt (shown when the agent needs input): see what it asks, then `y` approve once, `a` approve always (when offered) or `n` deny. Claude and OpenCode only |
 | `r` | label the agent (cockpit only, tmux window name is untouched; empty clears) |
@@ -108,7 +110,7 @@ A card with children shows its own cost and the tree total (`1.20 / tree 3.40`):
 
 Mouse: click a card to view it, double-click to interact, scroll to move through the list (needs `set -g mouse on` in tmux; hold shift to select text).
 
-Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, done, idle.
+Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, paused (only when cockpit paused it with `z`; an agent you interrupted yourself keeps its normal status, and typing a new prompt in a paused agent clears it), done, idle.
 
 A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer points at `:restart` (or `cockpit restart TARGET`), which relaunches the agent on the same session with a fresh server. It needs a recorded session id, which the hooks store once the agent has started. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`, rotated to `mcp.log.1` past 1 MiB. Codex isn't checked: by default it runs MCP servers under its shared background daemon, outside the agent's process tree.
 

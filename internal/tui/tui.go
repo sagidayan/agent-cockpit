@@ -383,6 +383,10 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.goTo(), nil
 	case "m":
 		return cmdMove(m, "")
+	case "z":
+		return m.pauseSelected()
+	case "Z":
+		return m.pauseAll()
 	case "space":
 		return m.toggleExpanded(), nil
 	case "d":

@@ -23,7 +23,7 @@ func Waiting(pane, waiter string) func() {
 }
 
 func Report(prev, cur state.Agent) error {
-	if prev.Status == cur.Status || reports[cur.Status] == "" {
+	if prev.Status == cur.Status || cur.Paused || reports[cur.Status] == "" {
 		return nil
 	}
 	cfg, err := config.Load()

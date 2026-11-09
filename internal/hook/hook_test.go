@@ -88,14 +88,20 @@ func TestParseErrors(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	t.Parallel()
-	prev := state.Agent{Kind: "claude", SessionID: "s1", Prompt: "old", Transcript: "/t.jsonl", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true}
+	prev := state.Agent{Kind: "claude", SessionID: "s1", Prompt: "old", Transcript: "/t.jsonl", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true}
+	resumed := prev
+	resumed.Status, resumed.Prompt, resumed.Paused = state.Working, "go on", false
+	stillPaused := prev
+	stillPaused.Status = state.Working
 	cases := []struct {
 		name string
 		next state.Agent
 		want state.Agent
 	}{
 		{"same session keeps everything", state.Agent{Kind: "claude", SessionID: "s1"}, prev},
-		{"new session keeps touched and cost only", state.Agent{Kind: "claude", SessionID: "s2"}, state.Agent{Kind: "claude", SessionID: "s2", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true}},
+		{"new session keeps touched, cost and the pause only", state.Agent{Kind: "claude", SessionID: "s2"}, state.Agent{Kind: "claude", SessionID: "s2", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true}},
+		{"a new prompt clears a cockpit pause", state.Agent{Kind: "claude", SessionID: "s1", Status: state.Working, Prompt: "go on"}, resumed},
+		{"a tool event keeps the pause", state.Agent{Kind: "claude", SessionID: "s1", Status: state.Working}, stillPaused},
 		{"other agent kind starts fresh", state.Agent{Kind: "codex"}, state.Agent{Kind: "codex"}},
 	}
 	for _, tc := range cases {

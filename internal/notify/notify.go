@@ -39,7 +39,7 @@ type note struct {
 
 func Wanted(cfg config.Notify, prev, cur state.Agent) bool {
 	changed := prev.Status != cur.Status || prev.Message != cur.Message
-	return changed && slices.Contains(cfg.Events, cur.Status)
+	return changed && !cur.Paused && slices.Contains(cfg.Events, cur.Status)
 }
 
 func Record(pane string, change func(prev state.Agent) (state.Agent, bool)) (prev, cur state.Agent, err error) {

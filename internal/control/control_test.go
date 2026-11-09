@@ -161,3 +161,22 @@ func TestReport(t *testing.T) {
 		})
 	}
 }
+
+func TestPauseUndoesTheMarkWhenEscFails(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/no-such-cockpit-test-sock,1,0")
+	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", Status: state.Working}))
+
+	require.Error(t, Pause(agents.Live{Agent: state.Agent{Pane: "%1", Kind: "claude"}, Pane: tmux.Pane{ID: "%1"}}))
+
+	got, err := state.Load("%1")
+	require.NoError(t, err)
+	require.False(t, got.Paused)
+}
+
+func TestEscapes(t *testing.T) {
+	t.Parallel()
+	for kind, want := range map[string]int{"claude": 1, "codex": 1, "opencode": 2} {
+		require.Equal(t, want, escapes(kind), kind)
+	}
+}

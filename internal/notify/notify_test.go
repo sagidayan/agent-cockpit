@@ -21,6 +21,7 @@ func TestWanted(t *testing.T) {
 		{"new agent needs input", state.Agent{}, agent(state.NeedsInput, "perm"), true},
 		{"done again with new message", agent(state.Done, "a"), agent(state.Done, "b"), true},
 		{"done unchanged", agent(state.Done, "a"), agent(state.Done, "a"), false},
+		{"interrupted by a cockpit pause", agent(state.Working, ""), state.Agent{Status: state.Done, Message: "ok", Paused: true}, false},
 		{"event not configured", agent(state.Idle, ""), agent(state.Working, "x"), false},
 	}
 	for _, tc := range cases {

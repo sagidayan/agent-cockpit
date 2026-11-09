@@ -19,6 +19,7 @@ type Entry struct {
 	Label     string  `json:"label"`
 	SessionID string  `json:"session_id"`
 	Mode      string  `json:"mode,omitempty"`
+	Paused    bool    `json:"paused,omitempty"`
 	Children  []Entry `json:"children,omitempty"`
 }
 
@@ -41,7 +42,7 @@ func FromLive(live []agents.Live) []Entry {
 }
 
 func Tree(a agents.Live, live []agents.Live) Entry {
-	e := Entry{Kind: a.Kind, Dir: a.Pane.Cwd, Name: a.WindowName, Label: a.Label, SessionID: a.SessionID, Mode: a.Mode}
+	e := Entry{Kind: a.Kind, Dir: a.Pane.Cwd, Name: a.WindowName, Label: a.Label, SessionID: a.SessionID, Mode: a.Mode, Paused: a.Paused}
 	for _, c := range live {
 		if c.Parent != "" && c.Parent == a.ID && c.ID != a.ID {
 			e.Children = append(e.Children, Tree(c, live))

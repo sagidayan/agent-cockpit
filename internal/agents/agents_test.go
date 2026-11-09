@@ -238,3 +238,23 @@ func TestWarnBudget(t *testing.T) {
 		}
 	}
 }
+
+func TestCurrent(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		agent state.Agent
+		want  state.Status
+	}{
+		{"working agent", state.Agent{Kind: "codex", Status: state.Working}, state.Working},
+		{"paused by cockpit shows paused", state.Agent{Kind: "codex", Status: state.Working, Paused: true}, state.Paused},
+		{"paused agent that went idle still shows paused", state.Agent{Kind: "codex", Status: state.Idle, Paused: true}, state.Paused},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, Current(tc.agent).Status)
+		})
+	}
+}

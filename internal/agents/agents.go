@@ -38,7 +38,7 @@ func List() ([]Live, error) {
 		_ = state.Remove(pane)
 	}
 	for i := range live {
-		live[i].Agent = Settle(live[i].Agent)
+		live[i].Agent = Current(live[i].Agent)
 		s, ok := state.LoadStats(live[i].ID)
 		live[i].Stats, live[i].HasStats = s, ok && s.Server == server
 	}
@@ -46,7 +46,15 @@ func List() ([]Live, error) {
 	return live, nil
 }
 
-func Settle(a state.Agent) state.Agent {
+func Current(a state.Agent) state.Agent {
+	a = settle(a)
+	if a.Paused {
+		a.Status = state.Paused
+	}
+	return a
+}
+
+func settle(a state.Agent) state.Agent {
 	s := transcript.Settle(a)
 	if s.Status != a.Status {
 		_, _, _ = notify.Record(a.Pane, settled)
