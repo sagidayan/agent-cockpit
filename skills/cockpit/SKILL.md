@@ -45,5 +45,5 @@ Statuses in JSON: `working`, `background`, `needs_input`, `done`, `idle`.
 
 - Find this session's own pane first (`$TMUX_PANE`) and never send/stop/kill it.
 - `list`, `project list` and `fav` (no args) are read-only - run freely.
-- `new`, `send`, `stop`, `kill`, `restart`, `label`, `fav TARGET`, `restore` and `project add/rm` affect other agents (cockpit refuses them for agents outside its `cockpit` tmux session) - confirm with the user first unless they explicitly asked for that action. Always confirm before `kill` and `restart`.
+- `new`, `send`, `stop`, `kill`, `restart`, `label`, `fav TARGET`, `restore` and `project add/rm` affect other agents (cockpit refuses them for agents it doesn't manage, until the user hands one over with `m` in the dashboard) - confirm with the user first unless they explicitly asked for that action. Always confirm before `kill` and `restart`.
 - Resolve the target from `list --json` before acting; if a label or name is ambiguous, use the pane id.

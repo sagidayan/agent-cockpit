@@ -3,22 +3,20 @@ package tui
 import (
 	"os"
 
-	"github.com/sagidayan/agent-cockpit/internal/launch"
-	"github.com/sagidayan/agent-cockpit/internal/paths"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 )
 
 const (
-	dashboardOption = "@cockpit_dashboard"
-	viewerWidth     = "70%"
-	slotCommand     = `printf '\n  agent-cockpit viewer slot\n'; exec tail -f /dev/null`
+	viewerWidth = "70%"
+	slotCommand = `printf '\n  agent-cockpit viewer slot\n'; exec tail -f /dev/null`
 )
 
 type viewer struct {
-	self    string
-	slot    string
-	viewing string
-	home    tmux.Pane
+	self     string
+	slot     string
+	viewing  string
+	home     tmux.Pane
+	borrowed string
 }
 
 func newViewer() *viewer {
@@ -26,9 +24,7 @@ func newViewer() *viewer {
 	if self == "" {
 		return nil
 	}
-	if s, err := tmux.SessionOf(self); err != nil || s != tmux.Session {
-		return nil
-	}
+	tmux.Own(self)
 	return &viewer{self: self}
 }
 
@@ -42,6 +38,7 @@ func (v *viewer) show(p tmux.Pane) error {
 	if err := v.ensureSlot(); err != nil {
 		return err
 	}
+	claim(p)
 	if err := tmux.Swap(p.ID, v.slot); err != nil {
 		v.slot = ""
 		return err
@@ -56,6 +53,7 @@ func (v *viewer) ensureSlot() error {
 	}
 	slot, err := tmux.SplitRight(v.self, viewerWidth, slotCommand)
 	v.slot = slot
+	tmux.Own(slot)
 	return err
 }
 
@@ -85,45 +83,63 @@ func (v *viewer) focus() error {
 	return tmux.Select(v.viewing)
 }
 
-func openInCockpit(self string) (bool, error) {
-	if self == "" {
-		return false, nil
-	}
-	if s, err := tmux.SessionOf(self); err != nil || s == tmux.Session {
-		return false, err
-	}
-	if err := tmux.EnsureSession(); err != nil {
-		return true, err
-	}
-	panes, err := tmux.PanesWithOption(dashboardOption, "1")
-	if err != nil {
-		return true, err
-	}
-	if len(panes) == 0 {
-		exe, err := os.Executable()
-		if err != nil {
-			return true, err
-		}
-		pane, err := tmux.NewWindow(tmux.Session, "dashboard", paths.Expand("~"), launch.Quote(exe))
-		if err != nil {
-			return true, err
-		}
-		panes = []string{pane}
-	}
-	return true, tmux.Focus(panes[0])
-}
-
 func (v *viewer) goTo(p tmux.Pane) error {
 	if err := v.restore(); err != nil {
 		return err
 	}
-	return tmux.Focus(p.ID)
+	claim(p)
+	session, err := tmux.SessionOf(v.self)
+	if err != nil {
+		return err
+	}
+	window, err := tmux.WindowOf(p.ID)
+	if err != nil {
+		return err
+	}
+	target := session + ":" + window
+	if v.borrowed != target {
+		v.giveBack()
+	}
+	here, err := tmux.HasWindow(session, window)
+	if err != nil {
+		return err
+	}
+	if !here {
+		if err := v.link(session, window); err != nil {
+			return err
+		}
+		v.borrowed = target
+	}
+	return tmux.SelectWindow(target, p.ID)
+}
+
+func claim(p tmux.Pane) {
+	if p.Session == tmux.Session {
+		_ = tmux.SetPaneOption(p.ID, tmux.AgentOption, "1")
+	}
+}
+
+func (v *viewer) link(session, window string) error {
+	own, err := tmux.WindowOf(v.self)
+	if err != nil {
+		return err
+	}
+	return tmux.Link(window, session+":"+own)
+}
+
+func (v *viewer) giveBack() {
+	if v == nil || v.borrowed == "" {
+		return
+	}
+	_ = tmux.Unlink(v.borrowed)
+	v.borrowed = ""
 }
 
 func (v *viewer) close() {
 	if v == nil {
 		return
 	}
+	v.giveBack()
 	_ = v.restore()
 	if v.slot != "" {
 		_ = tmux.Kill(v.slot)

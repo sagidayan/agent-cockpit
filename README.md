@@ -4,6 +4,8 @@ TUI cockpit for running and steering Claude Code, Codex and OpenCode agents in t
 
 ![agent-cockpit dashboard](docs/screenshot.png)
 
+> **Disclaimer:** this tool was built with AI coding agents. The code is reviewed and tested, but it may still have rough edges, so use it with care and report anything odd.
+
 ## Install
 
 Download a binary for macOS or Linux (amd64 / arm64) from [Releases](https://github.com/sagidayan/agent-cockpit/releases), unpack it and put `cockpit` on your `PATH`:
@@ -37,7 +39,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `review_agent` (spawns a read-only reviewer of an agent's changes as your child; forward its findings with `send_task`), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn. When a child finishes or needs input and its claude parent (in the `cockpit` session) isn't blocked in `wait_for_agent` on it, cockpit types a `[cockpit] child %12 (label) is done: ...` line into the parent's pane (turn off with `[spawn] notify_parent = false`).
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `review_agent` (spawns a read-only reviewer of an agent's changes as your child; forward its findings with `send_task`), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn. When a child finishes or needs input and its claude parent isn't blocked in `wait_for_agent` on it, cockpit types a `[cockpit] child %12 (label) is done: ...` line into the parent's pane (turn off with `[spawn] notify_parent = false`).
 
 ## Skill
 
@@ -53,7 +55,7 @@ mkdir -p ~/.claude/skills && cp -r skills/cockpit ~/.claude/skills/
 cockpit   # run inside tmux
 ```
 
-Cockpit only ever changes its own dedicated `cockpit` tmux session. Your other sessions are read-only to it: agents running there are listed, but cockpit won't send to, stop, kill, label, restart, view or move them, and it refuses `kill-server` and `kill-session` outright. Run `cockpit` from any session and it opens (or jumps to) a `dashboard` window in the `cockpit` session; switch back with your usual tmux keys.
+The dashboard runs where you start it, and agents run in the dedicated `cockpit` session. Cockpit only touches panes it manages: everything in the `cockpit` session, the agents it started (wherever they are shown), the dashboard with its viewer, agents you hand over with `m`, and agents that spawn children through it (so child reports reach them). Other panes in your sessions are read-only to it: agents you started yourself are listed, but cockpit won't send to, stop, kill, label, restart or view them until you press `m`. It never runs `kill-server` or `kill-session`.
 
 The cockpit window splits into the agent list and a live viewer. Moving through the list swaps each agent's real pane into the viewer, and everything is swapped back on quit.
 
@@ -64,8 +66,9 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `J`/`K` (or `pgdn`/`pgup`) | move the agent down / up the list. New agents join at the bottom and the order is kept across restarts |
 | `enter`, `→`, `l` | focus the viewer to interact; return with your tmux pane keys |
 | `i` | details: the agent's full last prompt and reply plus the recent conversation (from the claude transcript, or the bottom of the pane for other agents). Updates live; `↑`/`↓`, `pgup`/`pgdn`, `home`/`end` or the mouse wheel scroll, `esc` closes |
-| `gt` | go-to: switch to the agent's window in the `cockpit` session |
+| `gt` | go-to: show the agent's window in your current session (linked from its own session, unlinked when you return to the cockpit) |
 | `d` | review the agent's changes in your editor (see `:diff`) |
+| `m` | hand the agent and its children to cockpit: each agent pane moves into the `cockpit` session (its whole window if it is alone there, else just the pane, so your other panes stay put) and becomes managed |
 | `s` | send a prompt without leaving the list |
 | `p` | answer a permission prompt (shown when the agent needs input): see what it asks, then `y` approve once, `a` approve always (when offered) or `n` deny. Claude and OpenCode only |
 | `r` | label the agent (cockpit only, tmux window name is untouched; empty clears) |
@@ -99,7 +102,7 @@ Commands:
 | `:fav`, `:favorites` | toggle favorite / open the favorites list |
 | `:closed` | the last 20 closed agents (from the dashboard, `cockpit kill` or `close_agent`) with their folder, parent, last reply, diff summary and cost: `enter` resumes the conversation, `d` removes |
 | `:group` | toggle a header per project or repo (worktrees join their repo) above its agents; your order is kept inside each group, `J`/`K` move within a group, and the setting is kept across restarts |
-| `:goto`, `:help`, `:quit` | |
+| `:goto`, `:move`, `:help`, `:quit` | |
 
 A card with children shows its own cost and the tree total (`1.20 / tree 3.40`): itself plus all its descendants, including closed ones. The tree total is also `tree_cost_usd` in `list_agents` and `cockpit list --json`.
 
@@ -132,7 +135,7 @@ cockpit restore                   # bring back agents from last time (with their
 cockpit project add payments ~/Development/payments-service
 ```
 
-New agents always go to the dedicated detached `cockpit` tmux session, so your own sessions stay untouched. Agents running elsewhere still show up in the list, read-only.
+New agents always go to the dedicated detached `cockpit` tmux session, so your own sessions stay untouched. Agents running elsewhere still show up in the list, read-only until you hand them over with `m`.
 
 New sessions (TUI or CLI) open the configured editor in a pane to the left of the agent, in the agent's directory. It's skipped when the editor isn't installed, and closed together with the agent on `kill`.
 

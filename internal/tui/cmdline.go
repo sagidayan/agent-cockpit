@@ -42,6 +42,7 @@ func commands() []command {
 		{"kill", "", "close the selected agent's pane", cmdKill},
 		{"restart", "", "relaunch the selected agent, resuming its session", cmdRestart},
 		{"clean", "", "remove leftover cockpit worktrees with no changes", cmdClean},
+		{"move", "", "hand the agent to cockpit: move it into the cockpit tmux session", cmdMove},
 		{"rename", "[name]", "label the agent in cockpit (empty clears)", cmdRename},
 		{"sort", "status|recent|name|cost|location", "change the list order", cmdSort},
 		{"project", "[add <name> [dir] | rm <name>]", "list or manage projects", cmdProject},
@@ -344,6 +345,39 @@ func addProject(m model, name string, rest []string) (model, tea.Cmd) {
 		m.notice = "✓ project " + name + " → " + paths.Contract(dir)
 	}
 	return m, load
+}
+
+func cmdMove(m model, _ string) (model, tea.Cmd) {
+	return withSelected(m, func(a agents.Live) (model, tea.Cmd) {
+		if m.actionErr = m.view.restore(); m.actionErr != nil {
+			return m, nil
+		}
+		n := 0
+		for _, f := range m.family(a) {
+			moved, err := control.Move(f)
+			if m.actionErr = err; err != nil {
+				return m, load
+			}
+			if moved {
+				n++
+			}
+		}
+		m.notice = fmt.Sprintf("✓ moved %d agent(s) to the cockpit session", n)
+		if n == 0 {
+			m.notice = name(a) + " is already in the cockpit session"
+		}
+		return m, load
+	})
+}
+
+func (m model) family(a agents.Live) []agents.Live {
+	all := []agents.Live{a}
+	for _, c := range m.all {
+		if c.Parent == a.ID && c.ID != a.ID {
+			all = append(all, m.family(c)...)
+		}
+	}
+	return all
 }
 
 func cmdQuit(m model, _ string) (model, tea.Cmd) {

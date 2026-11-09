@@ -53,9 +53,13 @@ func Spawn(session string, r Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if r.Parent != "" {
+		_ = tmux.Adopt(r.Parent)
+	}
 	if r.Label != "" {
 		_ = tmux.SetLabel(pane, r.Label)
 	}
+	setOption(pane, tmux.AgentOption, "1")
 	setOption(pane, modeOption, r.Mode)
 	setOption(pane, parentOption, r.Parent)
 	_ = state.Save(state.Agent{Pane: pane, Kind: r.Kind, Cwd: r.Dir, Status: state.Idle, SessionID: r.ResumeID})
@@ -161,8 +165,8 @@ func Stop(a agents.Live) error {
 }
 
 func Kill(a agents.Live) (string, error) {
-	if a.Session != tmux.Session {
-		return "", fmt.Errorf("%s is in your %q tmux session; cockpit only closes agents in its own %q session", a.ID, a.Session, tmux.Session)
+	if !tmux.Owned(a.ID) {
+		return "", fmt.Errorf("%s is in your %q tmux session; cockpit only closes its own agents", a.ID, a.Session)
 	}
 	handOver(a)
 	_ = state.AddClosed(record(a))
@@ -284,6 +288,31 @@ func handOver(a agents.Live) {
 		p.ClosedCost += spent
 		return p, true
 	})
+}
+
+func Move(a agents.Live) (bool, error) {
+	session, err := Session()
+	if err != nil {
+		return false, err
+	}
+	window, err := tmux.WindowOf(a.ID)
+	if err != nil {
+		return false, err
+	}
+	if here, err := tmux.HasWindow(session, window); err != nil || here {
+		return false, err
+	}
+	if err := tmux.Adopt(a.ID); err != nil {
+		return false, err
+	}
+	n, err := tmux.PaneCount(a.ID)
+	switch {
+	case err != nil:
+		return false, err
+	case n > 1:
+		return true, tmux.BreakPane(a.ID, session, a.WindowName)
+	}
+	return true, tmux.MoveWindow(window, session)
 }
 
 func SetLabel(a agents.Live, label string) error {

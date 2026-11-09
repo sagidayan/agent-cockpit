@@ -38,7 +38,7 @@ func Report(prev, cur state.Agent) error {
 	if parent == "" || waiter == parent {
 		return nil
 	}
-	if s, err := tmux.SessionOf(parent); err != nil || s != tmux.Session {
+	if !tmux.Owned(parent) {
 		return nil
 	}
 	p, err := state.Load(parent)

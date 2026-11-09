@@ -34,13 +34,21 @@ func TestParsePanes(t *testing.T) {
 
 func TestGuard(t *testing.T) {
 	t.Parallel()
-	sessions := map[string]string{"%1": "cockpit", "cockpit:": "cockpit", "%7": "0", "@3": "work"}
-	sessionOf := func(target string) (string, error) {
-		s, ok := sessions[target]
+	panes := map[string]paneInfo{
+		"%1":       {"cockpit", "%1", ""},
+		"cockpit:": {"cockpit", "%1", ""},
+		"%7":       {"0", "%7", ""},
+		"@3":       {"work", "%8", ""},
+		"%20":      {"0", "%20", "1"},
+		"%21":      {"0", "%21", ""},
+	}
+	Own("%21")
+	describe := func(target string) (paneInfo, error) {
+		p, ok := panes[target]
 		if !ok {
-			return "", errors.New("can't find pane")
+			return paneInfo{}, errors.New("can't find pane")
 		}
-		return s, nil
+		return p, nil
 	}
 	cases := []struct {
 		name    string
@@ -55,6 +63,12 @@ func TestGuard(t *testing.T) {
 		{"kill a user pane", []string{"kill-pane", "-t", "%7"}, "only changes its own"},
 		{"swap a user pane in", []string{"swap-pane", "-d", "-s", "%7", "-t", "%1"}, `%7 is in your "0"`},
 		{"switch a client to a user window", []string{"switch-client", "-t", "@3"}, `"work"`},
+		{"cockpit agent shown in the dashboard window", []string{"send-keys", "-t", "%20", "Enter"}, ""},
+		{"dashboard's own pane", []string{"split-window", "-h", "-t", "%21", "x"}, ""},
+		{"swap an agent into the viewer slot", []string{"swap-pane", "-d", "-s", "%1", "-t", "%21"}, ""},
+		{"link a cockpit window next to the dashboard", []string{"link-window", "-a", "-s", "cockpit:", "-t", "%21"}, ""},
+		{"move a user window", []string{"move-window", "-d", "-s", "%7", "-t", "cockpit:"}, `%7 is in your "0"`},
+		{"break out a handed-over agent", []string{"break-pane", "-d", "-s", "%20", "-t", "cockpit:"}, ""},
 		{"mutating without a target", []string{"select-pane", "-L"}, "explicit target"},
 		{"unknown target", []string{"kill-pane", "-t", "%99"}, "no target %99"},
 		{"kill server", []string{"kill-server"}, "never runs tmux kill-server"},
@@ -64,7 +78,7 @@ func TestGuard(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := guard(tc.args, sessionOf)
+			err := guard(tc.args, describe)
 			if tc.wantErr == "" {
 				require.NoError(t, err)
 				return

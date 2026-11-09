@@ -97,18 +97,11 @@ func Run() error {
 	if cfg, err := config.Load(); err == nil && !cfg.UI.Icons {
 		icons = plainIcons
 	}
-	if moved, err := openInCockpit(os.Getenv("TMUX_PANE")); moved || err != nil {
-		return err
-	}
 	saved, err := snapshot.Load()
 	if err != nil {
 		return err
 	}
 	v := newViewer()
-	if v != nil {
-		_ = tmux.SetPaneOption(v.self, dashboardOption, "1")
-		defer func() { _ = tmux.UnsetPaneOption(v.self, dashboardOption) }()
-	}
 	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder(), grouped: state.LoadGrouped()}).Run()
 	v.close()
 	if m, ok := final.(model); ok && err == nil {
@@ -252,6 +245,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateMouse(msg)
 	case tea.FocusMsg:
 		m.blurred = false
+		m.view.giveBack()
 	case tea.BlurMsg:
 		m.blurred = true
 	case agentsMsg:
@@ -387,6 +381,8 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.chord = "g"
 	case "gt":
 		return m.goTo(), nil
+	case "m":
+		return cmdMove(m, "")
 	case "space":
 		return m.toggleExpanded(), nil
 	case "d":

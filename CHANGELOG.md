@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.0.4
+
+- The dashboard runs in the tmux session you start it from again, with agents in the `cockpit` session, and `m` and `gt` work as before.
+- Cockpit only touches panes it manages: the `cockpit` session, agents it started, the dashboard and its viewer, agents handed over with `m` and agents that spawn children through it. `m` now moves only the agent's pane when it shares a window with other panes.
+- The README notes that cockpit was built with AI coding agents.
+
 ## v0.0.3
 
 - Cockpit only ever changes its own `cockpit` tmux session. Agents in your other sessions are listed read-only, every mutating tmux command is checked against its target's session, and `kill-server` / `kill-session` are refused. `cockpit` run from another session opens its dashboard in the `cockpit` session. `m` / `:move` are gone and `gt` switches within the `cockpit` session.
