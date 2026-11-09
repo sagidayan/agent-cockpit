@@ -88,7 +88,7 @@ func TestRecord(t *testing.T) {
 	a := agents.Live{
 		Agent: state.Agent{Pane: "%1", Kind: "claude", Cwd: repo, SessionID: "s1", Message: "done"},
 		Pane:  tmux.Pane{ID: "%1", WindowName: "w", Label: "bug", Cwd: repo},
-		Stats: state.Stats{CostUSD: 1.5},
+		Stats: state.Stats{CostUSD: 1.5}, HasStats: true,
 	}
 	got := record(a)
 	require.WithinDuration(t, time.Now(), got.ClosedAt, time.Minute)

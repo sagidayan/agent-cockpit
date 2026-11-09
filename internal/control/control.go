@@ -243,7 +243,7 @@ func record(a agents.Live) state.Closed {
 	return state.Closed{
 		Name: a.WindowName, Label: a.Label, Kind: a.Kind, Dir: a.Pane.Cwd, Mode: a.Mode,
 		Parent: parentName(a.Parent), SessionID: a.SessionID, Message: a.Message,
-		Diff: diffSummary(a), CostUSD: a.Stats.CostUSD, ClosedAt: time.Now(),
+		Diff: diffSummary(a), CostUSD: agents.Spent(a), ClosedAt: time.Now(),
 	}
 }
 
