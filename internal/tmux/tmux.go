@@ -37,7 +37,7 @@ var mutating = []string{
 var owned sync.Map
 
 type paneInfo struct {
-	session, id, agent string
+	session, id, agent, windowSessions string
 }
 
 func Own(pane string) {
@@ -51,19 +51,20 @@ func Owned(target string) bool {
 
 func ours(p paneInfo) bool {
 	_, own := owned.Load(p.id)
-	return p.session == Session || p.agent == "1" || own
+	inCockpit := slices.Contains(strings.Split(p.windowSessions, ","), Session)
+	return p.session == Session || inCockpit || p.agent == "1" || own
 }
 
 func describe(target string) (paneInfo, error) {
-	out, err := exec.Command("tmux", "display-message", "-p", "-t", target, "#{session_name}\t#{pane_id}\t#{"+AgentOption+"}").Output()
+	out, err := exec.Command("tmux", "display-message", "-p", "-t", target, "#{session_name}\t#{pane_id}\t#{"+AgentOption+"}\t#{window_linked_sessions_list}").Output()
 	if err != nil {
 		return paneInfo{}, err
 	}
-	f := strings.SplitN(strings.TrimRight(string(out), "\n"), "\t", 3)
-	if len(f) != 3 {
+	f := strings.SplitN(strings.TrimRight(string(out), "\n"), "\t", 4)
+	if len(f) != 4 {
 		return paneInfo{}, fmt.Errorf("unexpected tmux output %q", out)
 	}
-	return paneInfo{f[0], f[1], f[2]}, nil
+	return paneInfo{f[0], f[1], f[2], f[3]}, nil
 }
 
 func guard(args []string, describe func(string) (paneInfo, error)) error {

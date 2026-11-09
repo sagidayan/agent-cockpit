@@ -35,12 +35,13 @@ func TestParsePanes(t *testing.T) {
 func TestGuard(t *testing.T) {
 	t.Parallel()
 	panes := map[string]paneInfo{
-		"%1":       {"cockpit", "%1", ""},
-		"cockpit:": {"cockpit", "%1", ""},
-		"%7":       {"0", "%7", ""},
-		"@3":       {"work", "%8", ""},
-		"%20":      {"0", "%20", "1"},
-		"%21":      {"0", "%21", ""},
+		"%1":       {"cockpit", "%1", "", "cockpit"},
+		"cockpit:": {"cockpit", "%1", "", "cockpit"},
+		"%7":       {"0", "%7", "", "0"},
+		"@3":       {"work", "%8", "", "work"},
+		"%20":      {"0", "%20", "1", "0"},
+		"%21":      {"0", "%21", "", "0"},
+		"0:5":      {"0", "%25", "", "cockpit,0"},
 	}
 	Own("%21")
 	describe := func(target string) (paneInfo, error) {
@@ -69,6 +70,8 @@ func TestGuard(t *testing.T) {
 		{"link a cockpit window next to the dashboard", []string{"link-window", "-a", "-s", "cockpit:", "-t", "%21"}, ""},
 		{"move a user window", []string{"move-window", "-d", "-s", "%7", "-t", "cockpit:"}, `%7 is in your "0"`},
 		{"break out a handed-over agent", []string{"break-pane", "-d", "-s", "%20", "-t", "cockpit:"}, ""},
+		{"unlink a cockpit window linked into a user session", []string{"unlink-window", "-t", "0:5"}, ""},
+		{"select a linked cockpit window whose editor pane is active", []string{"select-window", "-t", "0:5"}, ""},
 		{"mutating without a target", []string{"select-pane", "-L"}, "explicit target"},
 		{"unknown target", []string{"kill-pane", "-t", "%99"}, "no target %99"},
 		{"kill server", []string{"kill-server"}, "never runs tmux kill-server"},

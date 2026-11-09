@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.0.5
+
+- Fix: returning from `gt` now unlinks the agent's window from your session even when its editor pane is the active one.
+
 ## v0.0.4
 
 - The dashboard runs in the tmux session you start it from again, with agents in the `cockpit` session, and `m` and `gt` work as before.
