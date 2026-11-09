@@ -17,7 +17,6 @@ var reports = map[state.Status]string{
 	state.NeedsInput: "needs input%s. Read it with get_output and answer with send_task.",
 }
 
-
 func Waiting(pane, waiter string) func() {
 	setOption(pane, waiterOption, waiter)
 	return func() { _ = tmux.UnsetPaneOption(pane, waiterOption) }
