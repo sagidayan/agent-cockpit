@@ -88,7 +88,7 @@ func TestMatchProjects(t *testing.T) {
 func testForm(kinds []string, list []projects.Project, dir string) spawnForm {
 	f := spawnForm{
 		modes: modes.All(nil), kinds: kinds, projects: list,
-		filter: newField(80), dir: newField(80), url: newField(80), task: newField(80), name: newField(80),
+		filter: newField(80), dir: newField(80), url: newField(80), ticket: newField(80), task: newField(80), name: newField(80),
 	}
 	f.dir.SetValue(dir)
 	return f.applyMode()
@@ -112,7 +112,8 @@ func TestSpawnSteps(t *testing.T) {
 		{"coding in another folder", modes.Code, one, list, "", false, []spawnStep{stepMode, stepProject, stepDir, stepDetails}},
 		{"coding in a git repo", modes.Code, one, list, "api", true, []spawnStep{stepMode, stepProject, stepWorktree, stepDetails}},
 		{"review", modes.Review, two, list, "", false, []spawnStep{stepMode, stepKind, stepURL, stepDetails}},
-		{"master", modes.Master, two, list, "", true, []spawnStep{stepMode, stepKind, stepDetails}},
+		{"bug in a project repo", modes.Bug, one, list, "api", true, []spawnStep{stepMode, stepTicket, stepProject, stepWorktree, stepDetails}},
+		{"bug without projects", modes.Bug, two, nil, "", false, []spawnStep{stepMode, stepKind, stepTicket, stepDir, stepDetails}},
 		{"chat with one agent", modes.Chat, one, list, "", false, []spawnStep{stepMode, stepDetails}},
 	}
 	for _, tc := range cases {
@@ -168,6 +169,29 @@ func TestSpawnWizard(t *testing.T) {
 	r, err := f.request()
 	require.NoError(t, err)
 	require.Equal(t, []string{"claude", root + "/api", "api"}, []string{r.Kind, r.Dir, r.Name})
+}
+
+func TestSpawnWizardBug(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	f := testForm([]string{"claude"}, nil, root)
+	f.mode = slices.IndexFunc(f.modes, func(m config.Mode) bool { return m.Name == modes.Bug })
+	f, _ = f.next()
+	require.Equal(t, stepTicket, f.step)
+	f, _ = f.next()
+	require.Equal(t, "a ticket is required", f.err)
+
+	f.ticket.SetValue("SP-7")
+	f, _ = f.next()
+	require.Equal(t, stepDir, f.step)
+	f, _ = f.next()
+	require.Equal(t, stepDetails, f.step)
+	require.Equal(t, "defaults to bug SP-7", f.name.Placeholder)
+
+	r, err := f.request()
+	require.NoError(t, err)
+	require.Equal(t, []string{root, "bug SP-7", modes.Bug}, []string{r.Dir, r.Name, r.Mode})
+	require.Contains(t, r.Prompt, "Fix the bug described in SP-7")
 }
 
 func TestSpawnWizardDirNavigation(t *testing.T) {

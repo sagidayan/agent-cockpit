@@ -28,6 +28,7 @@ const (
 	stepProject
 	stepDir
 	stepURL
+	stepTicket
 	stepWorktree
 	stepDetails
 )
@@ -47,6 +48,7 @@ type spawnForm struct {
 	filter     textinput.Model
 	dir        textinput.Model
 	url        textinput.Model
+	ticket     textinput.Model
 	task       textinput.Model
 	name       textinput.Model
 	onName     bool
@@ -86,10 +88,11 @@ func newSpawnForm(dir string, list []projects.Project, width int) spawnForm {
 	cfg, _ := config.Load()
 	f := spawnForm{
 		modes: modes.All(cfg.Modes), kinds: installedKinds(), projects: list,
-		filter: newField(width), dir: newField(width), url: newField(width), task: newField(width), name: newField(width),
+		filter: newField(width), dir: newField(width), url: newField(width), ticket: newField(width), task: newField(width), name: newField(width),
 	}
 	f.filter.Placeholder = "type to filter"
 	f.url.Placeholder = "https://github.com/org/repo/pull/123"
+	f.ticket.Placeholder = "SP-1234 or an issue URL"
 	f.dir.SetValue(paths.Contract(dir) + "/")
 	f.dir.CursorEnd()
 	return f.applyMode()
@@ -120,18 +123,26 @@ func (f spawnForm) steps() []spawnStep {
 	case modes.InputURL:
 		steps = append(steps, stepURL)
 	case modes.InputNone, modes.InputTemp:
+	case modes.InputTicket:
+		steps = append(append(steps, stepTicket), f.folderSteps()...)
 	default:
-		if len(f.projects) > 0 {
-			steps = append(steps, stepProject)
-		}
-		if f.project == "" {
-			steps = append(steps, stepDir)
-		}
-		if f.repo {
-			steps = append(steps, stepWorktree)
-		}
+		steps = append(steps, f.folderSteps()...)
 	}
 	return append(steps, stepDetails)
+}
+
+func (f spawnForm) folderSteps() []spawnStep {
+	var steps []spawnStep
+	if len(f.projects) > 0 {
+		steps = append(steps, stepProject)
+	}
+	if f.project == "" {
+		steps = append(steps, stepDir)
+	}
+	if f.repo {
+		steps = append(steps, stepWorktree)
+	}
+	return steps
 }
 
 func (f spawnForm) first() bool {
@@ -178,6 +189,11 @@ func (f spawnForm) next() (spawnForm, tea.Cmd) {
 			f.err = "a PR URL is required"
 			return f, nil
 		}
+	case stepTicket:
+		if strings.TrimSpace(f.ticket.Value()) == "" {
+			f.err = "a ticket is required"
+			return f, nil
+		}
 	}
 	steps := f.steps()
 	return f.enter(steps[min(slices.Index(steps, f.step)+1, len(steps)-1)])
@@ -213,14 +229,15 @@ func (f spawnForm) enter(step spawnStep) (spawnForm, tea.Cmd) {
 }
 
 var taskPlaceholders = map[string]string{
-	modes.InputDir:  "optional - sent as the first prompt",
-	modes.InputURL:  "optional - extra review instructions",
-	modes.InputNone: "optional - otherwise it waits for you",
-	modes.InputTemp: "optional - or ask in the chat",
+	modes.InputDir:    "optional - sent as the first prompt",
+	modes.InputURL:    "optional - extra review instructions",
+	modes.InputTicket: "optional - hints, e.g. where to look",
+	modes.InputNone:   "optional - otherwise it waits for you",
+	modes.InputTemp:   "optional - or ask in the chat",
 }
 
 func (f spawnForm) focusInput() (spawnForm, tea.Cmd) {
-	for _, in := range []*textinput.Model{&f.filter, &f.dir, &f.url, &f.task, &f.name} {
+	for _, in := range []*textinput.Model{&f.filter, &f.dir, &f.url, &f.ticket, &f.task, &f.name} {
 		in.Blur()
 	}
 	f = f.suggest()
@@ -235,6 +252,8 @@ func (f spawnForm) defaultName() string {
 	switch m.Input {
 	case modes.InputURL:
 		return modes.ReviewName(strings.TrimSpace(f.url.Value()))
+	case modes.InputTicket:
+		return modes.TicketName(strings.TrimSpace(f.ticket.Value()))
 	case modes.InputNone, modes.InputTemp:
 		return m.Name
 	}
@@ -249,6 +268,8 @@ func (f *spawnForm) input() *textinput.Model {
 		return &f.dir
 	case stepURL:
 		return &f.url
+	case stepTicket:
+		return &f.ticket
 	case stepDetails:
 		if f.onName {
 			return &f.name
@@ -370,12 +391,13 @@ func (f spawnForm) request() (control.Request, error) {
 	}
 	m := f.currentMode()
 	spec := modes.Spec{
-		Kind: f.kinds[f.kind],
-		Name: strings.TrimSpace(f.name.Value()),
-		Task: strings.TrimSpace(f.task.Value()),
-		URL:  strings.TrimSpace(f.url.Value()),
+		Kind:   f.kinds[f.kind],
+		Name:   strings.TrimSpace(f.name.Value()),
+		Task:   strings.TrimSpace(f.task.Value()),
+		URL:    strings.TrimSpace(f.url.Value()),
+		Ticket: strings.TrimSpace(f.ticket.Value()),
 	}
-	if m.Input == modes.InputDir || m.Input == "" {
+	if modes.TakesDir(m) {
 		dir, err := resolveDir(f.dir.Value())
 		if err != nil {
 			return control.Request{}, err

@@ -82,24 +82,27 @@ func TestTLDR(t *testing.T) {
 	}
 }
 
-func TestHelpAnswerHint(t *testing.T) {
+func TestHelpHints(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
-		name   string
-		status state.Status
-		want   bool
+		name  string
+		agent agents.Live
+		hint  string
+		want  bool
 	}{
-		{"needs input", state.NeedsInput, true},
-		{"working", state.Working, false},
-		{"idle", state.Idle, false},
+		{"needs input", agents.Live{Agent: state.Agent{Status: state.NeedsInput}}, "p answer", true},
+		{"working", agents.Live{Agent: state.Agent{Status: state.Working}}, "p answer", false},
+		{"idle", agents.Live{Agent: state.Agent{Status: state.Idle}}, "p answer", false},
+		{"claude with MCP down", agents.Live{Agent: state.Agent{Kind: "claude"}, MCPDown: true}, "type /mcp in the agent", true},
+		{"MCP up", agents.Live{Agent: state.Agent{Kind: "claude"}}, "MCP down", false},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			m := model{width: 200, agents: []agents.Live{{Agent: state.Agent{Status: tc.status}}}}
-			if got := strings.Contains(ansi.Strip(m.help()), "p answer"); got != tc.want {
-				t.Errorf("help() shows p = %v, want %v", got, tc.want)
+			m := model{width: 400, agents: []agents.Live{tc.agent}}
+			if got := strings.Contains(ansi.Strip(m.help()), tc.hint); got != tc.want {
+				t.Errorf("help() shows %q = %v, want %v", tc.hint, got, tc.want)
 			}
 		})
 	}

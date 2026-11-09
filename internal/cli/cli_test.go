@@ -24,7 +24,8 @@ func TestRequest(t *testing.T) {
 	list := []projects.Project{{Name: "api", Dir: "/opt/api", Agent: "codex"}, {Name: "web", Dir: "/opt/web"}}
 	all := modes.All([]config.Mode{
 		{Name: modes.Review, Prompt: "R {{.URL}}"},
-		{Name: modes.Master, Prompt: "M {{.Task}}"},
+		{Name: modes.Bug, Prompt: "B {{.Ticket}}"},
+		{Name: "standup", Input: modes.InputNone, Prompt: "S {{.Task}}"},
 		{Name: "docs", Agent: "opencode", Prompt: "D {{.Task}}"},
 	})
 	cases := []struct {
@@ -44,8 +45,10 @@ func TestRequest(t *testing.T) {
 		{"worktree outside a repo", []string{"--worktree"}, false, control.Request{}, "/work is not in a git repository"},
 		{"review infers dir and name", []string{"--mode", "review", "--url", "https://github.com/acme/web/pull/7"}, false, control.Request{Kind: "claude", Dir: "/tmp/prs/web-7", Name: "review web#7", Prompt: "R https://github.com/acme/web/pull/7", Mode: "review"}, ""},
 		{"review without url", []string{"--mode", "review"}, false, control.Request{}, "PR URL is required"},
-		{"master in home", []string{"--mode", "master", "--prompt", "ship it"}, false, control.Request{Kind: "claude", Dir: home, Name: "master", Prompt: "M ship it", Mode: "master"}, ""},
-		{"master with dir", []string{"--mode", "master", "--dir", "sub"}, false, control.Request{Kind: "claude", Dir: "/work/sub", Name: "master", Prompt: "M", Mode: "master"}, ""},
+		{"bug in cwd named after ticket", []string{"--mode", "bug", "--ticket", "SP-7"}, false, control.Request{Kind: "claude", Dir: "/work", Name: "bug SP-7", Prompt: "B SP-7", Mode: "bug"}, ""},
+		{"bug without ticket", []string{"--mode", "bug"}, false, control.Request{}, "a ticket is required"},
+		{"no-input mode in home", []string{"--mode", "standup", "--prompt", "ship it"}, false, control.Request{Kind: "claude", Dir: home, Name: "standup", Prompt: "S ship it", Mode: "standup"}, ""},
+		{"no-input mode with dir", []string{"--mode", "standup", "--dir", "sub"}, false, control.Request{Kind: "claude", Dir: "/work/sub", Name: "standup", Prompt: "S", Mode: "standup"}, ""},
 		{"custom mode agent", []string{"--mode", "docs", "--prompt", "x"}, false, control.Request{Kind: "opencode", Dir: "/work", Prompt: "D x", Mode: "docs"}, ""},
 		{"unknown mode", []string{"--mode", "nope"}, false, control.Request{}, `no mode "nope"`},
 		{"unknown project", []string{"--project", "nope"}, false, control.Request{}, `no project "nope"`},

@@ -30,7 +30,6 @@ const (
 	flashFor   = 2 * time.Second
 	noticeFor  = 4 * time.Second
 	noticeFade = time.Second
-	pageSize   = 5
 )
 
 type agentsMsg struct {
@@ -55,6 +54,8 @@ type model struct {
 	agents         []agents.Live
 	filter         string
 	sortBy         string
+	order          []string
+	chord          string
 	prompt         rune
 	line           textinput.Model
 	confirm        *confirmation
@@ -98,7 +99,7 @@ func Run() error {
 		return err
 	}
 	v := newViewer()
-	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved}).Run()
+	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder()}).Run()
 	v.close()
 	if m, ok := final.(model); ok && err == nil {
 		return saveSnapshot(m)
@@ -139,6 +140,7 @@ func load() tea.Msg {
 	if err != nil {
 		return agentsMsg{err: err}
 	}
+	agents.MarkMCP(a)
 	p, err := projects.Load()
 	if err != nil {
 		return agentsMsg{err: err}
@@ -205,7 +207,8 @@ func (m model) setAgents(live []agents.Live) model {
 	if !viewed && m.view != nil && m.view.viewing != "" {
 		m.actionErr = m.view.restore()
 	}
-	agents.Sort(live)
+	m.order = arrange(m.order, live)
+	byOrder(live, m.order)
 	m.markChanged(live)
 	m.all = live
 	return m.checkRestore(live).refreshView()
@@ -316,7 +319,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	a, ok := m.selected()
-	switch msg.String() {
+	key := m.chord + msg.String()
+	m.chord = ""
+	switch key {
 	case "q", "ctrl+c":
 		return m, tea.Quit
 	case "j", "down":
@@ -328,15 +333,13 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "G", "end":
 		m.cursor = max(0, len(m.agents)-1)
 		return m.showSelected(), nil
-	case "home":
+	case "gg", "home":
 		m.cursor = 0
 		return m.showSelected(), nil
-	case "pgdown":
-		m.cursor = min(m.cursor+pageSize, max(0, len(m.agents)-1))
-		return m.showSelected(), nil
-	case "pgup":
-		m.cursor = max(m.cursor-pageSize, 0)
-		return m.showSelected(), nil
+	case "J", "pgdown":
+		return m.shift(1)
+	case "K", "pgup":
+		return m.shift(-1)
 	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		if i := int(msg.String()[0] - '1'); i < len(m.agents) {
 			m.cursor = i
@@ -366,6 +369,8 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "i":
 		return m.openDetail()
 	case "g":
+		m.chord = "g"
+	case "gt":
 		return m.goTo(), nil
 	case "space":
 		return m.toggleExpanded(), nil

@@ -1,11 +1,14 @@
 package transcript
 
 import (
+	"bufio"
+	"bytes"
 	"cmp"
 	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -51,10 +54,16 @@ type entry struct {
 }
 
 type block struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
-	Name string `json:"name"`
+	Type  string `json:"type"`
+	Text  string `json:"text"`
+	Name  string `json:"name"`
+	Input struct {
+		FilePath     string `json:"file_path"`
+		NotebookPath string `json:"notebook_path"`
+	} `json:"input"`
 }
+
+var editTools = []string{"Edit", "MultiEdit", "Write", "NotebookEdit"}
 
 func Settle(a state.Agent) state.Agent {
 	if a.Kind != "claude" {
@@ -113,6 +122,76 @@ func Conversation(path string, n int) ([]Message, bool) {
 		msgs = append(msgs, messages(e)...)
 	}
 	return msgs[max(0, len(msgs)-n):], true
+}
+
+func Edited(a state.Agent) []string {
+	if a.Kind != "claude" {
+		return nil
+	}
+	var files []string
+	for _, path := range sessionFiles(File(a)) {
+		files = editsIn(path, files)
+	}
+	return files
+}
+
+func sessionFiles(path string) []string {
+	var files []string
+	for range maxHops {
+		if path == "" {
+			break
+		}
+		subagents, _ := filepath.Glob(filepath.Join(strings.TrimSuffix(path, ".jsonl"), "subagents", "*.jsonl"))
+		files = append(append(files, path), subagents...)
+		next, ok := continuation(path)
+		if !ok {
+			break
+		}
+		path = filepath.Join(filepath.Dir(path), next+".jsonl")
+	}
+	return files
+}
+
+func continuation(path string) (string, bool) {
+	data, err := tail(path)
+	if err != nil {
+		return "", false
+	}
+	_, next := decode(data)
+	return next, next != ""
+}
+
+func editsIn(path string, files []string) []string {
+	f, err := os.Open(path)
+	if err != nil {
+		return files
+	}
+	defer f.Close()
+	r := bufio.NewReaderSize(f, 1<<20)
+	for {
+		line, err := r.ReadBytes('\n')
+		if bytes.Contains(line, []byte(`"tool_use"`)) {
+			files = editedFiles(line, files)
+		}
+		if err != nil {
+			return files
+		}
+	}
+}
+
+func editedFiles(line []byte, files []string) []string {
+	var e entry
+	var blocks []block
+	if json.Unmarshal(line, &e) != nil || e.Type != "assistant" || json.Unmarshal(e.Message.Content, &blocks) != nil {
+		return files
+	}
+	for _, b := range blocks {
+		f := cmp.Or(b.Input.FilePath, b.Input.NotebookPath)
+		if b.Type == "tool_use" && slices.Contains(editTools, b.Name) && f != "" && !slices.Contains(files, f) {
+			files = append(files, f)
+		}
+	}
+	return files
 }
 
 func load(path string) ([]entry, bool) {

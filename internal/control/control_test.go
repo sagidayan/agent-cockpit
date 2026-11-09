@@ -1,11 +1,14 @@
 package control
 
 import (
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 )
 
@@ -41,4 +44,31 @@ func TestMatch(t *testing.T) {
 			require.Equal(t, tc.want, a.ID)
 		})
 	}
+}
+
+func TestHandOver(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/sock,1,0")
+	repo := t.TempDir()
+	out, err := exec.Command("git", "-C", repo, "init", "-q").CombinedOutput()
+	require.NoError(t, err, string(out))
+	repo, err = filepath.EvalSymlinks(repo)
+	require.NoError(t, err)
+	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", Touched: []string{"/z/earlier"}}))
+	require.NoError(t, state.Save(state.Agent{Pane: "%6", Kind: "codex", Touched: []string{"/z/grandchild"}}))
+
+	child := func(id, parent string) agents.Live {
+		return agents.Live{Agent: state.Agent{Pane: id, Kind: "codex", Cwd: repo}, Pane: tmux.Pane{ID: id, Parent: parent, Cwd: repo}}
+	}
+	handOver(child("%2", "%1"))
+	handOver(child("%3", "%1"))
+	handOver(child("%4", "%9"))
+	handOver(child("%5", ""))
+	handOver(child("%6", "%1"))
+
+	got, err := state.Load("%1")
+	require.NoError(t, err)
+	require.Equal(t, []string{repo, "/z/earlier", "/z/grandchild"}, got.Touched)
+	_, err = state.Load("%9")
+	require.Error(t, err)
 }

@@ -1,13 +1,13 @@
 ---
 name: cockpit
-description: Drive other coding agents (claude, codex, opencode) running in tmux via the agent-cockpit CLI (`cockpit`). Use to list running agents and their status, spawn a new agent in a project/dir, start a PR review agent or a quick chat, send a prompt or task to another agent, wait for it, read its output, interrupt/kill it, label or favorite it, restore last session's agents, or manage cockpit projects. Triggers on "cockpit", "spawn an agent", "start an agent in <repo>", "tell the <x> agent to", "what are my agents doing", "review this PR in a new agent", "fan out to agents".
+description: Drive other coding agents (claude, codex, opencode) running in tmux via the agent-cockpit CLI (`cockpit`). Use to list running agents and their status, spawn a new agent in a project/dir, start a PR review, bug fix or a quick chat, send a prompt or task to another agent, wait for it, read its output, interrupt/kill it, label or favorite it, restore last session's agents, or manage cockpit projects. Triggers on "cockpit", "spawn an agent", "start an agent in <repo>", "tell the <x> agent to", "what are my agents doing", "review this PR in a new agent", "fix this ticket in a new agent", "fan out to agents".
 ---
 
 # Cockpit
 
 `cockpit` drives coding agents running in tmux. `TARGET` = pane id (`%12`), label, or window name.
 
-If the `cockpit` MCP server is connected, prefer its tools (`list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `close_agent`) - agents spawned that way become children of this session. Close a child with `close_agent` (or `cockpit kill`) once its work is done and reviewed. Otherwise use the CLI below.
+If the `cockpit` MCP server is connected, prefer its tools (`list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff`, `close_agent`) - agents spawned that way become children of this session, and any agent can spawn its own. Close a child with `close_agent` (or `cockpit kill`) once its work is done and reviewed. Otherwise use the CLI below.
 
 ## Commands
 
@@ -15,8 +15,8 @@ If the `cockpit` MCP server is connected, prefer its tools (`list_agents`, `list
 cockpit list --json                # pane, kind, status, session, window, label, mode, parent, dir, project, message, stats
 cockpit project list               # named dirs; add NAME [DIR] | rm NAME
 
-cockpit new [--mode code|review|master|chat] [--agent claude|codex|opencode] \
-  [--project NAME | --dir DIR] [--url PR_URL] [--name WINDOW] [--label L] [--prompt TASK] [--worktree]
+cockpit new [--mode code|review|bug|chat] [--agent claude|codex|opencode] \
+  [--project NAME | --dir DIR] [--url PR_URL] [--ticket KEY_OR_URL] [--name WINDOW] [--label L] [--prompt TASK] [--worktree]
                                    # prints the new pane id
 cockpit send TARGET "text"         # or: ... | cockpit send TARGET -
 cockpit stop TARGET                # interrupt (Esc)
@@ -29,7 +29,7 @@ cockpit restore                    # resume agents from last snapshot
 Modes:
 - `code` (default): works in `--project`/`--dir`; the prompt is its first task. `--worktree` runs it in a new git worktree on a `cockpit/<label>` branch, use it when several agents work in one repo.
 - `review`: reviews `--url` in `/tmp/prs/<repo>-<number>`.
-- `master`: coordinates child agents via the MCP tools.
+- `bug`: fixes the bug in `--ticket` (a key like `SP-1234` or an issue URL) in `--project`/`--dir`, with a regression test. Takes `--worktree` too.
 - `chat`: a plain Q&A session in a disposable temp folder.
 
 Statuses in JSON: `working`, `background`, `needs_input`, `done`, `idle`.
@@ -38,7 +38,7 @@ Statuses in JSON: `working`, `background`, `needs_input`, `done`, `idle`.
 
 - **Wait**: poll `cockpit list --json | jq -r '.[] | select(.pane=="%12") | .status'` until it is not `working`/`background` (use a monitor/until-loop, not a fixed sleep).
 - **Output**: the `message` field from `list --json`, or `tmux capture-pane -p -t %12 -S -200` for the raw screen.
-- **Diff**: `git -C <dir> diff` using the agent's `dir`; add `$(git -C <dir> merge-base HEAD origin/HEAD)` to include its commits.
+- **Diff**: `git -C <dir> diff $(git -C <dir> merge-base HEAD origin/HEAD)` using the agent's `dir`, plus `git ls-files --others --exclude-standard` for new files. Repeat for each repo it touched and for its children's dirs.
 
 ## Rules
 

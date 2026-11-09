@@ -20,6 +20,8 @@ const (
 	injected    = `{"type":"user","timestamp":"2026-01-01T10:00:06Z","message":{"content":"<task-notification>x</task-notification>"}}`
 	meta        = `{"type":"user","isMeta":true,"timestamp":"2026-01-01T10:00:07Z","message":{"content":"skill text"}}`
 	toolUse     = `{"type":"assistant","timestamp":"2026-01-01T10:00:01Z","message":{"content":[{"type":"text","text":"Looking."},{"type":"tool_use","name":"Bash"}]}}`
+	edits       = `{"type":"assistant","timestamp":"2026-01-01T10:00:02Z","message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":"/r/a.go"}},{"type":"tool_use","name":"Read","input":{"file_path":"/r/b.go"}},{"type":"tool_use","name":"Write","input":{"file_path":"/x/new.md"}}]}}`
+	moreEdits   = `{"type":"assistant","timestamp":"2026-01-01T10:00:03Z","message":{"content":[{"type":"tool_use","name":"MultiEdit","input":{"file_path":"/r/a.go"}},{"type":"tool_use","name":"NotebookEdit","input":{"notebook_path":"/n/x.ipynb"}}]}}`
 )
 
 func at(s string) time.Time {
@@ -91,6 +93,38 @@ func TestConversation(t *testing.T) {
 			got, ok := Conversation(write(t, t.TempDir(), "s", tc.lines...), tc.n)
 			require.True(t, ok)
 			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestEdited(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name  string
+		kind  string
+		setup func(t *testing.T, dir string) string
+		want  []string
+	}{
+		{"claude edits in order without reads or repeats", "claude", func(t *testing.T, dir string) string {
+			return write(t, dir, "s", prompt, edits, moreEdits, ended)
+		}, []string{"/r/a.go", "/x/new.md", "/n/x.ipynb"}},
+		{"earlier hops and subagents", "claude", func(t *testing.T, dir string) string {
+			old := write(t, dir, "old", edits, `{"type":"continued-in","continuedInSessionId":"new"}`)
+			write(t, dir, "new", moreEdits)
+			require.NoError(t, os.MkdirAll(filepath.Join(dir, "old", "subagents"), 0o755))
+			write(t, filepath.Join(dir, "old", "subagents"), "agent-1", `{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Write","input":{"file_path":"/sub/s.go"}}]}}`)
+			return old
+		}, []string{"/r/a.go", "/x/new.md", "/sub/s.go", "/n/x.ipynb"}},
+		{"other agents have no transcript", "codex", func(t *testing.T, dir string) string {
+			return write(t, dir, "s", edits)
+		}, nil},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			path := tc.setup(t, t.TempDir())
+			require.Equal(t, tc.want, Edited(state.Agent{Kind: tc.kind, Transcript: path}))
 		})
 	}
 }

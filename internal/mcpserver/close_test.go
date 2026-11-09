@@ -23,7 +23,7 @@ func TestClosable(t *testing.T) {
 		wantErr string
 	}{
 		{"child without children", "%4", "%1", []string{"%4"}, ""},
-		{"sub-master closes its children first", "%2", "%1", []string{"%3", "%2"}, ""},
+		{"child closes its own children first", "%2", "%1", []string{"%3", "%2"}, ""},
 		{"grandchild is not mine", "%3", "%1", nil, "not your child"},
 		{"unrelated agent", "%5", "%1", nil, "not your child"},
 		{"no caller pane", "%2", "", nil, "not your child"},

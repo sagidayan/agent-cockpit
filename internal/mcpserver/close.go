@@ -39,17 +39,7 @@ func closable(live []agents.Live, pane, caller string) ([]agents.Live, error) {
 		if caller == "" || a.Parent != caller {
 			return nil, fmt.Errorf("%s is not your child agent; you can only close agents you spawned", pane)
 		}
-		return subtree(live, a), nil
+		return agents.Subtree(live, a), nil
 	}
 	return nil, fmt.Errorf("no agent in pane %s", pane)
-}
-
-func subtree(live []agents.Live, root agents.Live) []agents.Live {
-	var out []agents.Live
-	for _, a := range live {
-		if a.Parent == root.ID && a.ID != root.ID {
-			out = append(out, subtree(live, a)...)
-		}
-	}
-	return append(out, root)
 }

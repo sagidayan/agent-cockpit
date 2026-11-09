@@ -32,3 +32,30 @@ func TestIsChat(t *testing.T) {
 		})
 	}
 }
+
+func TestDisposable(t *testing.T) {
+	t.Parallel()
+	chat, err := NewChat()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(chat) })
+	cases := []struct {
+		name string
+		dir  string
+		want bool
+	}{
+		{"chat", chat, true},
+		{"inside a chat", filepath.Join(chat, "repo"), true},
+		{"review folder", "/tmp/prs/web-7", true},
+		{"any tmp subfolder", "/tmp/scratch", true},
+		{"tmp itself", "/tmp", false},
+		{"TMPDIR subfolder", filepath.Join(os.TempDir(), "x"), true},
+		{"home", Expand("~"), false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, Disposable(tc.dir))
+		})
+	}
+}

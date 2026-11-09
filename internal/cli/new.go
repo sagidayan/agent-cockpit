@@ -70,6 +70,7 @@ func request(args []string, list []projects.Project, all []config.Mode, cwd stri
 	fs.StringVar(&s.Kind, "agent", "", "")
 	fs.StringVar(&mode, "mode", modes.Code, "")
 	fs.StringVar(&s.URL, "url", "", "")
+	fs.StringVar(&s.Ticket, "ticket", "", "")
 	fs.StringVar(&project, "project", "", "")
 	fs.StringVar(&s.Dir, "dir", "", "")
 	fs.StringVar(&s.Name, "name", "", "")
@@ -86,7 +87,7 @@ func request(args []string, list []projects.Project, all []config.Mode, cwd stri
 	if err := applyProject(fs, &s, project, list); err != nil {
 		return control.Request{}, err
 	}
-	if s.Dir != "" || m.Input == modes.InputDir {
+	if s.Dir != "" || modes.TakesDir(m) {
 		s.Dir = absolute(cwd, paths.Expand(s.Dir))
 	}
 	r, err := modes.Build(m, s)

@@ -22,7 +22,10 @@ func Contract(p string) string {
 	return p
 }
 
-const chatRoot = "/tmp/cockpit-chats"
+const (
+	chatRoot   = "/tmp/cockpit-chats"
+	ReviewRoot = "/tmp/prs"
+)
 
 func NewChat() (string, error) {
 	if err := os.MkdirAll(chatRoot, 0o755); err != nil {
@@ -38,4 +41,19 @@ func NewChat() (string, error) {
 func IsChat(dir string) bool {
 	root, err := filepath.EvalSymlinks(chatRoot)
 	return err == nil && filepath.Dir(dir) == root
+}
+
+func Disposable(dir string) bool {
+	return below(dir, "/tmp") || below(dir, os.TempDir())
+}
+
+func below(dir, root string) bool {
+	resolved, _ := filepath.EvalSymlinks(root)
+	for _, r := range []string{filepath.Clean(root), resolved} {
+		rel, err := filepath.Rel(r, dir)
+		if r != "" && err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, "../") {
+			return true
+		}
+	}
+	return false
 }

@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/changes"
 	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/launch"
 	"github.com/sagidayan/agent-cockpit/internal/paths"
@@ -158,6 +160,7 @@ func Stop(a agents.Live) error {
 }
 
 func Kill(a agents.Live) error {
+	handOver(a)
 	editors, _ := tmux.PanesWithOption(editorOption, a.ID)
 	for _, e := range editors {
 		_ = tmux.Kill(e)
@@ -170,6 +173,26 @@ func Kill(a agents.Live) error {
 		return os.RemoveAll(a.Pane.Cwd)
 	}
 	return nil
+}
+
+func handOver(a agents.Live) {
+	if a.Parent == "" {
+		return
+	}
+	if saved, err := state.Load(a.ID); err == nil {
+		a.Touched = saved.Touched
+	}
+	touched := changes.Touched(a)
+	if len(touched) == 0 {
+		return
+	}
+	_, _, _, _ = state.Update(a.Parent, func(p state.Agent) (state.Agent, bool) {
+		if p.Pane == "" {
+			return p, false
+		}
+		p.Touched = slices.Compact(slices.Sorted(slices.Values(append(p.Touched, touched...))))
+		return p, true
+	})
 }
 
 func Move(a agents.Live, cockpitPane string) (bool, error) {

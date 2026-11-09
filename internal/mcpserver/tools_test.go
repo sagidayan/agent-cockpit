@@ -4,9 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-
-	"github.com/sagidayan/agent-cockpit/internal/config"
-	"github.com/sagidayan/agent-cockpit/internal/modes"
 )
 
 func TestTruncate(t *testing.T) {
@@ -45,6 +42,11 @@ func TestSummarize(t *testing.T) {
 			"modified and untracked",
 			"# /repo\ndiff --git a/a.go b/a.go\n--- a/a.go\n+++ b/a.go\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/new file.txt b/new file.txt\n--- /dev/null\n+++ b/new file.txt\n@@ -0,0 +1,2 @@\n+x\n+y\n",
 			"# 2 files changed, +3 -1: a.go, new file.txt\n",
+		},
+		{
+			"several repos",
+			"# /src/api\n# branch x\ndiff --git a/README.md b/README.md\n+a\n# /src/web: git diff failed\n# /src/web2\ndiff --git a/README.md b/README.md\n-b\n",
+			"# 2 files changed in 2 repos, +1 -1: api/README.md, web2/README.md\n",
 		},
 	}
 	for _, tc := range cases {
@@ -100,28 +102,22 @@ func TestLevel(t *testing.T) {
 func TestSpawnSpec(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	mode := func(name string) config.Mode {
-		m, _ := modes.Find(modes.All(nil), name)
-		return m
-	}
 	cases := []struct {
 		name    string
 		in      spawnArgs
-		mode    string
 		wantDir string
 		wantErr string
 	}{
-		{"master without dir", spawnArgs{Task: "t"}, modes.Master, "", ""},
-		{"master with dir", spawnArgs{Dir: dir, Task: "t"}, modes.Master, dir, ""},
-		{"code needs dir", spawnArgs{Task: "t"}, modes.Code, "", "exactly one of project or dir"},
-		{"code with dir", spawnArgs{Dir: dir, Task: "t"}, modes.Code, dir, ""},
-		{"both set", spawnArgs{Dir: dir, Project: "p"}, modes.Master, "", "exactly one of project or dir"},
+		{"needs dir", spawnArgs{Task: "t"}, "", "exactly one of project or dir"},
+		{"with dir", spawnArgs{Dir: dir, Task: "t"}, dir, ""},
+		{"both set", spawnArgs{Dir: dir, Project: "p"}, "", "exactly one of project or dir"},
+		{"relative dir", spawnArgs{Dir: "rel"}, "", "not an absolute directory"},
 	}
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := spawnSpec(tc.in, mode(tc.mode))
+			got, err := spawnSpec(tc.in)
 			if tc.wantErr != "" {
 				require.ErrorContains(t, err, tc.wantErr)
 				return

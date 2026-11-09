@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Every agent can delegate to child agents, so the master mode is gone. The guidance on splitting work and closing children now comes with the cockpit MCP server.
+- New bug fix mode: give it a ticket key or URL and a project, it reads the ticket, fixes the bug and adds a regression test. In the wizard, `cockpit new --mode bug --ticket` and `spawn_agent` with `mode: "bug"`.
+- `d` and `get_diff` show every repo the agent touched: its folder, repos cloned inside a temp folder, repos of files it edited elsewhere and its children's repos, also after they were closed. Edited files outside git are listed.
+- The dashboard flags claude and opencode agents whose cockpit MCP server is gone (**⚠ MCP down**) and tells you how to reconnect.
+- The agent list keeps a fixed order: new agents join at the bottom, and `J`/`K` (or `pgdn`/`pgup`) move the selected one down or up. The order survives restarts.
+- Vim-style keys: `gg` / `G` jump to the first / last agent, and go-to is now `gt` instead of `g`.
+- The MCP server no longer dies when a tool panics, and logs its start, exit and panics to `~/.local/state/agent-cockpit/mcp.log`.
+
 ## v0.0.2
 
 - Answer an agent's permission prompt from the dashboard: `p`, then `y` approve once, `a` approve always or `n` deny (Claude Code and OpenCode).

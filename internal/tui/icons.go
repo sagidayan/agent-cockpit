@@ -22,7 +22,7 @@ var nerdIcons = iconSet{
 	plus:    "\uF067",
 	star:    "\U000F04CE",
 	kinds:   map[string]string{"claude": "\uEC10", "codex": "\U000F09D1", "opencode": "\uEA85"},
-	modes:   map[string]string{"code": "\uF44F", "review": "\uF407", "master": "\U000F04AA", "chat": "\uF086"},
+	modes:   map[string]string{"code": "\uF44F", "review": "\uF407", "bug": "\uF188", "chat": "\uF086"},
 	status: map[state.Status]string{
 		state.NeedsInput: "\U000F009E",
 		state.Done:       "\U000F05E0",

@@ -29,6 +29,7 @@ type Agent struct {
 	Message    string    `json:"message"`
 	Prompt     string    `json:"prompt,omitempty"`
 	Transcript string    `json:"transcript,omitempty"`
+	Touched    []string  `json:"touched,omitempty"`
 	Server     string    `json:"server,omitempty"`
 	SessionID  string    `json:"session_id,omitempty"`
 	UpdatedAt  time.Time `json:"updated_at"`
@@ -52,6 +53,20 @@ func root() string {
 		base = filepath.Join(home, ".local", "state")
 	}
 	return filepath.Join(base, "agent-cockpit")
+}
+
+func MCPLog() string {
+	return filepath.Join(root(), "mcp.log")
+}
+
+func LoadOrder() []string {
+	var ids []string
+	_ = read(filepath.Join(root(), "order.json"), &ids)
+	return ids
+}
+
+func SaveOrder(ids []string) error {
+	return write(filepath.Join(root(), "order.json"), ids)
 }
 
 func Dir() string {

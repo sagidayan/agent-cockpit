@@ -228,17 +228,7 @@ func (m model) statusChips(labels bool) string {
 }
 
 func (m model) population() string {
-	masters := 0
-	for _, a := range m.all {
-		if a.Mode == modes.Master {
-			masters++
-		}
-	}
-	parts := []string{plural(len(m.all), "agent")}
-	if masters > 0 {
-		parts = append(parts, plural(masters, "master"))
-	}
-	return mutedStyle.Render(strings.Join(parts, " · "))
+	return mutedStyle.Render(plural(len(m.all), "agent"))
 }
 
 func plural(n int, noun string) string {
@@ -337,6 +327,9 @@ func (m model) cardHead(a agents.Live, inner int) []string {
 	}
 	if m.isFavorite(a) {
 		label += " " + favoriteStyle.Render(icons.star)
+	}
+	if a.MCPDown {
+		label += " " + errStyle.Render("⚠ MCP down")
 	}
 	title := nameStyle.Render(ansi.Truncate(label, inner-lipgloss.Width(status)-1, "…"))
 	gap := max(1, inner-lipgloss.Width(title)-lipgloss.Width(status))
@@ -500,9 +493,9 @@ func (m model) projectsView() string {
 
 func (m model) helpView() string {
 	keys := [][2]string{
-		{"j/k ↑↓", "move"}, {"pgup/dn", "move by 5"}, {"home/end", "first / last (also G)"}, {"1-9", "jump to agent"},
+		{"j/k ↑↓", "move"}, {"gg G", "first / last (also home/end)"}, {"J/K", "move the agent down / up the list (also pgdn/pgup)"}, {"1-9", "jump to agent"},
 		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
-		{"g", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
+		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
 		{"x", "dismiss restore"}, {"?", "this help"}, {"q", "quit"},
@@ -558,6 +551,8 @@ func (f spawnForm) crumb(step spawnStep) string {
 		return paths.Contract(filepath.Clean(paths.Expand(f.dir.Value())))
 	case stepURL:
 		return modes.ReviewName(strings.TrimSpace(f.url.Value()))
+	case stepTicket:
+		return modes.TicketName(strings.TrimSpace(f.ticket.Value()))
 	case stepWorktree:
 		if f.worktree {
 			return "new worktree"
@@ -579,6 +574,8 @@ func (f spawnForm) question() string {
 		return "Which folder?"
 	case stepURL:
 		return "Which pull request?"
+	case stepTicket:
+		return "Which ticket?"
 	case stepWorktree:
 		return "Work in a separate git worktree?"
 	}
@@ -586,16 +583,17 @@ func (f spawnForm) question() string {
 }
 
 var taskQuestions = map[string]string{
-	modes.InputDir:  "What should it work on?",
-	modes.InputURL:  "Anything to focus on?",
-	modes.InputNone: "What's the task?",
-	modes.InputTemp: "What do you want to ask?",
+	modes.InputDir:    "What should it work on?",
+	modes.InputURL:    "Anything to focus on?",
+	modes.InputTicket: "Anything to add?",
+	modes.InputNone:   "What's the task?",
+	modes.InputTemp:   "What do you want to ask?",
 }
 
 var modeDescriptions = map[string]string{
 	modes.Code:   "work in a project folder",
 	modes.Review: "review a pull request",
-	modes.Master: "coordinate agents across projects",
+	modes.Bug:    "fix a bug from a ticket",
 	modes.Chat:   "ask questions in a disposable folder",
 }
 
@@ -605,6 +603,7 @@ var stepKeys = map[spawnStep][][2]string{
 	stepProject:  {{"type", "filter"}, {"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
 	stepDir:      {{"type", "filter"}, {"↑↓", "choose"}, {"→", "open"}, {"←", "up"}, {"⏎", "next"}, {"esc", "back"}},
 	stepURL:      {{"⏎", "next"}, {"esc", "back"}},
+	stepTicket:   {{"⏎", "next"}, {"esc", "back"}},
 	stepWorktree: {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
 	stepDetails:  {{"tab", "task / name"}, {"⏎", "start"}, {"esc", "back"}},
 }
@@ -630,6 +629,8 @@ func (m model) stepBody() []string {
 		return append([]string{m.formRow("dir", f.dir.View(), true)}, m.suggestionRows()...)
 	case stepURL:
 		return []string{m.formRow("PR url", f.url.View(), true)}
+	case stepTicket:
+		return []string{m.formRow("ticket", f.ticket.View(), true)}
 	case stepWorktree:
 		items := []suggestion{
 			{"no", "work in this checkout", ""},
@@ -640,7 +641,7 @@ func (m model) stepBody() []string {
 		}
 		return m.choices(items, 0)
 	}
-	label := map[string]string{modes.InputURL: "notes", modes.InputTemp: "question"}[f.currentMode().Input]
+	label := map[string]string{modes.InputURL: "notes", modes.InputTicket: "notes", modes.InputTemp: "question"}[f.currentMode().Input]
 	return []string{
 		m.formRow(cmp.Or(label, "task"), f.task.View(), !f.onName),
 		m.formRow("name", f.name.View(), f.onName),
@@ -741,10 +742,18 @@ func totalCost(live []agents.Live) float64 {
 	return total
 }
 
+var reconnectHints = map[string]string{
+	"claude":   "MCP down: type /mcp in the agent, pick cockpit, reconnect",
+	"opencode": "MCP down: restart the agent to reconnect",
+}
+
 func (m model) help() string {
-	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"g", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
+	keys := [][2]string{{"↑↓", "move"}, {"⏎/→", "interact"}, {"i", "details"}, {"gt", "go-to"}, {"d", "diff"}, {"s", "send"}, {"n", "new"}, {"f", "fav"}, {"F", "favorites"}, {"/", "filter"}, {":", "cmd"}, {"?", "help"}}
 	if a, ok := m.selected(); ok && canAnswer(a) {
 		keys = slices.Insert(keys, 2, [2]string{"p", "answer"})
+	}
+	if a, ok := m.selected(); ok && a.MCPDown {
+		keys = slices.Insert(keys, 0, [2]string{"⚠", reconnectHints[a.Kind]})
 	}
 	switch {
 	case m.question != nil:

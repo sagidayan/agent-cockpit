@@ -14,7 +14,7 @@ import (
 )
 
 var usages = map[string]string{
-	"new":     "new [--mode code|review|master|NAME] [--agent claude|codex|opencode] [--project NAME | --dir DIR] [--url URL] [--name N] [--label L] [--prompt TASK] [--worktree]",
+	"new":     "new [--mode code|review|bug|chat|NAME] [--agent claude|codex|opencode] [--project NAME | --dir DIR] [--url URL] [--ticket T] [--name N] [--label L] [--prompt TASK] [--worktree]",
 	"list":    "list [--json]",
 	"send":    "send TARGET TEXT... (TEXT - reads stdin)",
 	"stop":    "stop TARGET",

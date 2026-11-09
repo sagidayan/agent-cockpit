@@ -3,11 +3,52 @@ package gitdiff
 import (
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
-const emptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+const (
+	emptyTree   = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+	nestedDepth = 3
+)
+
+func Root(path string) (string, bool) {
+	dir := path
+	for info, err := os.Stat(dir); err != nil || !info.IsDir(); info, err = os.Stat(dir) {
+		if filepath.Dir(dir) == dir {
+			return "", false
+		}
+		dir = filepath.Dir(dir)
+	}
+	top, err := git(dir, "rev-parse", "--show-toplevel")
+	return strings.TrimSpace(top), err == nil
+}
+
+func Nested(dir string) []string {
+	var roots []string
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+		if p != dir && (strings.HasPrefix(d.Name(), ".") || d.Name() == "node_modules") {
+			return fs.SkipDir
+		}
+		if _, err := os.Stat(filepath.Join(p, ".git")); err == nil {
+			if root, ok := Root(p); ok {
+				roots = append(roots, root)
+			}
+			return fs.SkipDir
+		}
+		if rel, _ := filepath.Rel(dir, p); strings.Count(rel, string(filepath.Separator)) >= nestedDepth-1 {
+			return fs.SkipDir
+		}
+		return nil
+	})
+	return roots
+}
 
 func Collect(dir string) (string, error) {
 	if _, err := git(dir, "rev-parse", "--git-dir"); err != nil {

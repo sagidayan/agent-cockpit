@@ -18,6 +18,7 @@ type Live struct {
 	tmux.Pane
 	Stats    state.Stats
 	HasStats bool
+	MCPDown  bool
 }
 
 func List() ([]Live, error) {
@@ -97,4 +98,14 @@ func join(panes []tmux.Pane, stored []state.Agent, server string) (live []Live, 
 		stale = append(stale, pane)
 	}
 	return live, stale
+}
+
+func Subtree(live []Live, root Live) []Live {
+	var out []Live
+	for _, a := range live {
+		if a.Parent == root.ID && a.ID != root.ID {
+			out = append(out, Subtree(live, a)...)
+		}
+	}
+	return append(out, root)
 }

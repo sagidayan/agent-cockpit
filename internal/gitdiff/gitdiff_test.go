@@ -99,3 +99,39 @@ func TestCollect(t *testing.T) {
 		})
 	}
 }
+
+func TestRootAndNested(t *testing.T) {
+	t.Parallel()
+	scratch, err := filepath.EvalSymlinks(t.TempDir())
+	require.NoError(t, err)
+	for _, d := range []string{"one", "deep/er/two", "too/deep/for/three", ".hidden/four", "node_modules/five", "plain/dir"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(scratch, d), 0o755))
+		if filepath.Base(d) != "dir" {
+			run(t, filepath.Join(scratch, d), "init", "-q")
+		}
+	}
+	require.NoError(t, os.MkdirAll(filepath.Join(scratch, "one", "sub"), 0o755))
+
+	require.Equal(t, []string{filepath.Join(scratch, "deep/er/two"), filepath.Join(scratch, "one")}, Nested(scratch))
+
+	cases := []struct {
+		name   string
+		path   string
+		want   string
+		wantOK bool
+	}{
+		{"repo root", filepath.Join(scratch, "one"), filepath.Join(scratch, "one"), true},
+		{"subfolder", filepath.Join(scratch, "one", "sub"), filepath.Join(scratch, "one"), true},
+		{"deleted file", filepath.Join(scratch, "one", "gone", "x.go"), filepath.Join(scratch, "one"), true},
+		{"outside git", filepath.Join(scratch, "plain", "dir", "x.go"), "", false},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := Root(tc.path)
+			require.Equal(t, tc.wantOK, ok)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

@@ -1,15 +1,16 @@
 package mcpserver
 
 import (
-	"cmp"
 	"context"
 	"fmt"
+	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/sagidayan/agent-cockpit/internal/agents"
-	"github.com/sagidayan/agent-cockpit/internal/gitdiff"
+	"github.com/sagidayan/agent-cockpit/internal/changes"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 )
@@ -80,6 +81,10 @@ func find(pane string) (agents.Live, error) {
 	if err != nil {
 		return agents.Live{}, err
 	}
+	return pick(live, pane)
+}
+
+func pick(live []agents.Live, pane string) (agents.Live, error) {
 	for _, l := range live {
 		if l.Pane.ID == pane {
 			return l, nil
@@ -167,29 +172,35 @@ func getOutput(_ context.Context, _ *mcp.CallToolRequest, in outputArgs) (*mcp.C
 }
 
 func getDiff(_ context.Context, _ *mcp.CallToolRequest, in paneArgs) (*mcp.CallToolResult, any, error) {
-	l, err := find(in.Pane)
+	live, err := agents.List()
 	if err != nil {
 		return nil, nil, err
 	}
-	dir := cmp.Or(l.Agent.Cwd, l.Pane.Cwd)
-	diff, err := gitdiff.Collect(dir)
+	l, err := pick(live, in.Pane)
 	if err != nil {
 		return nil, nil, err
 	}
+	diff := changes.Diff(l, live)
 	if diff == "" {
-		return text("no changes in " + dir), nil, nil
+		return text("no changes found in the repos " + in.Pane + " or its children touched"), nil, nil
 	}
 	return text(truncate(summarize(diff)+diff, diffLimit)), nil, nil
 }
 
 func summarize(diff string) string {
-	var files []string
+	var files, repos []string
+	var repo string
 	var added, removed int
 	for line := range strings.SplitSeq(diff, "\n") {
 		switch {
+		case strings.HasPrefix(line, "# /"):
+			repo, _, _ = strings.Cut(strings.TrimPrefix(line, "# "), ": ")
 		case strings.HasPrefix(line, "diff --git "):
 			_, name, _ := strings.Cut(line, " b/")
-			files = append(files, name)
+			files = append(files, filepath.Join(filepath.Base(repo), name))
+			if !slices.Contains(repos, repo) {
+				repos = append(repos, repo)
+			}
 		case strings.HasPrefix(line, "+++"), strings.HasPrefix(line, "---"):
 		case strings.HasPrefix(line, "+"):
 			added++
@@ -197,7 +208,14 @@ func summarize(diff string) string {
 			removed++
 		}
 	}
-	return fmt.Sprintf("# %d files changed, +%d -%d: %s\n", len(files), added, removed, strings.Join(files, ", "))
+	where := fmt.Sprintf(" in %d repos", len(repos))
+	if len(repos) < 2 {
+		where = ""
+		for i, f := range files {
+			files[i] = strings.TrimPrefix(f, filepath.Base(repo)+"/")
+		}
+	}
+	return fmt.Sprintf("# %d files changed%s, +%d -%d: %s\n", len(files), where, added, removed, strings.Join(files, ", "))
 }
 
 func truncate(s string, limit int) string {

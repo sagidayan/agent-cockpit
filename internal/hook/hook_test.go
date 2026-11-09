@@ -85,3 +85,24 @@ func TestParseErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestMerge(t *testing.T) {
+	t.Parallel()
+	prev := state.Agent{Kind: "claude", SessionID: "s1", Prompt: "old", Transcript: "/t.jsonl", Touched: []string{"/r"}}
+	cases := []struct {
+		name string
+		next state.Agent
+		want state.Agent
+	}{
+		{"same session keeps everything", state.Agent{Kind: "claude", SessionID: "s1"}, prev},
+		{"new session keeps touched only", state.Agent{Kind: "claude", SessionID: "s2"}, state.Agent{Kind: "claude", SessionID: "s2", Touched: []string{"/r"}}},
+		{"other agent kind starts fresh", state.Agent{Kind: "codex"}, state.Agent{Kind: "codex"}},
+	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.want, merge(prev, tc.next))
+		})
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"text/template"
@@ -20,13 +21,14 @@ import (
 const (
 	Code   = "code"
 	Review = "review"
-	Master = "master"
+	Bug    = "bug"
 	Chat   = "chat"
 
-	InputDir  = "dir"
-	InputURL  = "url"
-	InputNone = "none"
-	InputTemp = "temp"
+	InputDir    = "dir"
+	InputURL    = "url"
+	InputTicket = "ticket"
+	InputNone   = "none"
+	InputTemp   = "temp"
 )
 
 const reviewPrompt = `Review the pull request {{.URL}}
@@ -36,26 +38,22 @@ Do not push, approve or comment on the PR unless I ask.{{if .Task}}
 
 Also: {{.Task}}{{end}}`
 
-const masterPrompt = `You are a master agent: you coordinate other coding agents and don't edit code yourself.
-Use the cockpit MCP tools: list_projects to see the folders you can work in, spawn_agent to start a child agent in a folder with a focused task, wait_for_agent, get_output and get_diff to follow up and review, and send_task to give feedback.
-Split the work across folders, run children in parallel when you can, and report back to me with a summary.
-When several children work in the same repo at once, pass worktree: true to spawn_agent so each gets its own git worktree on a new cockpit/<label> branch, and name the branches in your report.
-For a large chunk that spans several folders, spawn a sub-master with spawn_agent mode "master"; it runs its own children and reports back to you.
-When you decide a child's work is done and reviewed, close it with close_agent. Close all your children before you report back.{{if .Task}}
+const bugPrompt = `Fix the bug described in {{.Ticket}}
+Read the ticket first with the matching CLI (jira for a Jira key or URL, gh for a GitHub issue).
+Reproduce it, find the root cause, fix it and add a test that fails without the fix.
+Do not commit, push or update the ticket unless I ask.{{if .Task}}
 
-Task: {{.Task}}{{else}}
-
-Wait for my instructions.{{end}}`
+Also: {{.Task}}{{end}}`
 
 var builtin = []config.Mode{
 	{Name: Code, Title: "Coding", Input: InputDir, Prompt: "{{.Task}}"},
 	{Name: Review, Title: "PR review", Input: InputURL, Prompt: reviewPrompt},
-	{Name: Master, Title: "Master", Input: InputNone, Prompt: masterPrompt},
+	{Name: Bug, Title: "Bug fix", Input: InputTicket, Prompt: bugPrompt},
 	{Name: Chat, Title: "Chat", Input: InputTemp, Prompt: "{{.Task}}"},
 }
 
 type Inputs struct {
-	Task, URL string
+	Task, URL, Ticket string
 }
 
 func All(custom []config.Mode) []config.Mode {
@@ -117,12 +115,10 @@ func repoAndNumber(raw string) (repo, number string) {
 	return parts[1], ""
 }
 
-const reviewRoot = "/tmp/prs"
-
 func ReviewDir(raw string) string {
 	repo, number := repoAndNumber(raw)
 	id := strings.Trim(repo+"-"+number, "-")
-	return filepath.Join(reviewRoot, cmp.Or(id, "review"))
+	return filepath.Join(paths.ReviewRoot, cmp.Or(id, "review"))
 }
 
 func ReviewName(raw string) string {
@@ -136,9 +132,34 @@ func ReviewName(raw string) string {
 	return "review"
 }
 
+var ticketKey = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*-\d+$`)
+
+func TicketName(ticket string) string {
+	ticket = strings.TrimSpace(ticket)
+	if strings.Contains(ticket, "/") && !strings.Contains(ticket, "://") {
+		ticket = "https://" + ticket
+	}
+	u, err := url.Parse(ticket)
+	if err != nil || u.Host == "" {
+		return strings.TrimSpace("bug " + ticket)
+	}
+	parts := slices.DeleteFunc(strings.Split(u.Path, "/"), func(p string) bool { return p == "" || p == "-" })
+	if i := slices.Index(parts, "issues"); i > 0 && i+1 < len(parts) {
+		return "bug " + parts[i-1] + "#" + parts[i+1]
+	}
+	key := u.Query().Get("selectedIssue")
+	if i := slices.IndexFunc(parts, ticketKey.MatchString); i >= 0 {
+		key = cmp.Or(key, parts[i])
+	}
+	if key == "" && len(parts) > 0 {
+		key = parts[len(parts)-1]
+	}
+	return strings.TrimSpace("bug " + key)
+}
+
 type Spec struct {
-	Kind, Dir, Name, Label, Task, URL string
-	Worktree                          bool
+	Kind, Dir, Name, Label, Task, URL, Ticket string
+	Worktree                                  bool
 }
 
 func TakesDir(m config.Mode) bool {
@@ -149,7 +170,7 @@ func Build(m config.Mode, s Spec) (control.Request, error) {
 	if s.Worktree && !TakesDir(m) {
 		return control.Request{}, fmt.Errorf("a worktree needs a mode that works in a folder, not %s", m.Name)
 	}
-	prompt, err := Prompt(m, Inputs{Task: s.Task, URL: s.URL})
+	prompt, err := Prompt(m, Inputs{Task: s.Task, URL: s.URL, Ticket: s.Ticket})
 	if err != nil {
 		return control.Request{}, err
 	}
@@ -173,6 +194,12 @@ func Build(m config.Mode, s Spec) (control.Request, error) {
 	case InputNone:
 		home, _ := os.UserHomeDir()
 		dir, name = cmp.Or(dir, home), cmp.Or(name, m.Name)
+	case InputTicket:
+		if s.Ticket == "" {
+			return control.Request{}, errors.New("a ticket is required")
+		}
+		name = cmp.Or(name, TicketName(s.Ticket))
+		fallthrough
 	default:
 		if dir == "" {
 			return control.Request{}, errors.New("a directory is required")

@@ -24,8 +24,9 @@ type spawnArgs struct {
 	Task     string `json:"task" jsonschema:"self-contained first prompt for the agent"`
 	Agent    string `json:"agent,omitempty" jsonschema:"claude, codex or opencode (default: the project's agent, else yours)"`
 	Label    string `json:"label,omitempty" jsonschema:"short label shown in the cockpit"`
-	Mode     string `json:"mode,omitempty" jsonschema:"code (default) or master; a master coordinates its own child agents and needs no project or dir"`
-	Worktree bool   `json:"worktree,omitempty" jsonschema:"code mode: work in a new git worktree on a cockpit/<label> branch from the folder's HEAD, so parallel agents in one repo don't share a checkout"`
+	Mode     string `json:"mode,omitempty" jsonschema:"code (default) or bug; bug fixes the bug described in ticket"`
+	Ticket   string `json:"ticket,omitempty" jsonschema:"bug mode: ticket key or URL, e.g. SP-1234 or a GitHub issue URL"`
+	Worktree bool   `json:"worktree,omitempty" jsonschema:"work in a new git worktree on a cockpit/<label> branch from the folder's HEAD, so parallel agents in one repo don't share a checkout"`
 }
 
 type spawnResult struct {
@@ -84,14 +85,14 @@ func spawnRequest(in spawnArgs) (control.Request, error) {
 		return control.Request{}, err
 	}
 	m, ok := modes.Find(modes.All(cfg.Modes), cmp.Or(in.Mode, modes.Code))
-	if !ok || (m.Name != modes.Code && m.Name != modes.Master) {
-		return control.Request{}, fmt.Errorf("mode must be code or master, got %q", in.Mode)
+	if !ok || (m.Name != modes.Code && m.Name != modes.Bug) {
+		return control.Request{}, fmt.Errorf("mode must be code or bug, got %q", in.Mode)
 	}
-	spec, err := spawnSpec(in, m)
+	spec, err := spawnSpec(in)
 	if err != nil {
 		return control.Request{}, err
 	}
-	spec.Label, spec.Worktree = in.Label, in.Worktree
+	spec.Label, spec.Ticket, spec.Worktree = in.Label, in.Ticket, in.Worktree
 	r, err := modes.Build(m, spec)
 	if err != nil {
 		return control.Request{}, err
@@ -126,10 +127,7 @@ func level(pane string, parents map[string]string) int {
 	return n
 }
 
-func spawnSpec(in spawnArgs, m config.Mode) (modes.Spec, error) {
-	if in.Project == "" && in.Dir == "" && m.Input == modes.InputNone {
-		return modes.Spec{Kind: in.Agent, Task: in.Task}, nil
-	}
+func spawnSpec(in spawnArgs) (modes.Spec, error) {
 	if (in.Project == "") == (in.Dir == "") {
 		return modes.Spec{}, errors.New("set exactly one of project or dir")
 	}

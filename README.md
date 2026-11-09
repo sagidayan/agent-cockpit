@@ -37,7 +37,7 @@ For each installed agent it adds the status hooks (keeping your existing ones, w
 
 To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the snippets.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Agents started with `spawn_agent` are children of the calling agent. `spawn_agent` takes `worktree: true` to start a coding agent in its own [worktree](#worktrees). A master closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn.
 
 ## Skill
 
@@ -58,17 +58,18 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | Key | Action |
 |---|---|
 | `j`/`k`, `↑`/`↓` | select agent (shown live in the viewer) |
-| `pgup`/`pgdn`, `home`/`end` | move by 5 / first / last |
+| `gg` / `G` (or `home`/`end`) | first / last agent |
+| `J`/`K` (or `pgdn`/`pgup`) | move the agent down / up the list. New agents join at the bottom and the order is kept across restarts |
 | `enter`, `→`, `l` | focus the viewer to interact; return with your tmux pane keys |
 | `i` | details: the agent's full last prompt and reply plus the recent conversation (from the claude transcript, or the bottom of the pane for other agents). Updates live; `↑`/`↓`, `pgup`/`pgdn`, `home`/`end` or the mouse wheel scroll, `esc` closes |
-| `g` | go-to: show the agent's window in your current session (linked from its own session, unlinked when you return to the cockpit) |
+| `gt` | go-to: show the agent's window in your current session (linked from its own session, unlinked when you return to the cockpit) |
 | `d` | review the agent's changes in your editor (see `:diff`) |
 | `m` | move the agent and its children into the dedicated `cockpit` tmux session (its whole window, or just the agent pane if it shares a window with the cockpit) |
 | `s` | send a prompt without leaving the list |
 | `p` | answer a permission prompt (shown when the agent needs input): see what it asks, then `y` approve once, `a` approve always (when offered) or `n` deny. Claude and OpenCode only |
 | `r` | label the agent (cockpit only, tmux window name is untouched; empty clears) |
 | `n` | start a new agent session (see below) |
-| `1`-`9` / `G` | jump to an agent / the last one |
+| `1`-`9` | jump to an agent |
 | `/` | filter the list live (name, repo, agent, status, prompt, reply); `esc` clears |
 | `:` | run a command (tab completes, any unique prefix works) |
 | `f` / `F` | toggle favorite (★) / favorites list: `enter` jumps to a running one or resumes it, `d` removes |
@@ -86,9 +87,9 @@ Commands:
 | `:stop` | interrupt the selected agent (Esc) |
 | `:kill` | close the selected agent's pane (asks to confirm) |
 | `:rename [name]` | label the agent in cockpit (same as `r`) |
-| `:sort status\|recent\|name\|cost\|location` | change the list order (favorites always stay on top) |
+| `:sort status\|recent\|name\|cost\|location` | change the list order (favorites always stay on top); `location` is your own order |
 | `:project [add <name> [dir] \| rm <name>]` | list or manage projects (dir defaults to the selected agent's) |
-| `:diff` | open the agent's changes in a popup with `[editor] command`, else `$VISUAL`, `$EDITOR` or `less`. Diffs the agent's current folder (including a worktree it moved into) against the merge-base with the default branch, so committed, uncommitted and untracked changes all show |
+| `:diff` | open the agent's changes in a popup with `[editor] command`, else `$VISUAL`, `$EDITOR` or `less`. Covers every repo it touched: its folder (including a worktree it moved into), repos cloned inside a temp folder (any folder under `/tmp` or `$TMPDIR`, like chat and review folders), repos of files it edited elsewhere (claude, including its subagents) and its children's repos, also after they were closed. Each repo is diffed against the merge-base with the default branch, so committed, uncommitted and untracked changes all show. Edited files outside git are listed |
 | `:shell` | open a shell in the agent's directory in a popup |
 | `:!<cmd>` | run a command in the agent's directory in a popup |
 | `:restore` | restore sessions from last time |
@@ -99,6 +100,8 @@ Mouse: click a card to view it, double-click to interact, scroll to move through
 
 Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, done, idle.
 
+A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer says how to reconnect: `/mcp` → cockpit → reconnect in claude, a restart in opencode. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`.
+
 When the cockpit pane loses focus its header dims and shows "viewer has focus". This needs `set -g focus-events on` in your tmux config.
 
 ## CLI
@@ -108,7 +111,7 @@ Every action is also a subcommand, for scripts and other agents. `TARGET` is a p
 ```sh
 pane=$(cockpit new --project payments --label refunds --prompt "fix the flaky refund test")
 cockpit new --mode review --url https://github.com/acme/payments-service/pull/42
-cockpit new --mode master --prompt "add refunds to payments and web"
+cockpit new --mode bug --project api --ticket SP-1234 --worktree
 cockpit new --mode chat --prompt "what does SIGKILL (Code Signature Invalid) mean?"
 cockpit new --project payments --label refunds --worktree --prompt "..."   # own git worktree, see below
 cockpit list                      # children indented under their parent; or --json
@@ -133,31 +136,31 @@ A mode is a session template.
 |---|---|---|
 | `code` | dir | a coding agent, the task is its first prompt (default) |
 | `review` | url | reviews a PR in `/tmp/prs/<repo>-<number>` |
-| `master` | none | coordinates child agents across projects via the MCP tools |
+| `bug` | ticket + dir | fixes the bug in a ticket (key or URL, read with `jira` or `gh`), with a regression test |
 | `chat` | temp | a plain chat for questions, in a fresh `/tmp/cockpit-chats/chat-*` folder that `kill` deletes. Favorites still resume it: the history lives with the agent and the folder is recreated |
 
-Add your own (or override a built-in) in `config.toml`. `{{.Task}}` and `{{.URL}}` are filled from the form or `--prompt`/`--url`:
+Add your own (or override a built-in) in `config.toml`. `{{.Task}}`, `{{.URL}}` and `{{.Ticket}}` are filled from the form or `--prompt`/`--url`/`--ticket`:
 
 ```toml
 [[mode]]
 name = "docs"
 title = "Docs"
-input = "dir"      # dir, url, none or temp
+input = "dir"      # dir, url, ticket, none or temp
 agent = "claude"   # optional
 prompt = "Update the docs for: {{.Task}}"
 ```
 
-In the TUI, the mode is the first step of the new-session wizard. Children appear indented under their master. A master can start sub-masters (`spawn_agent` with `mode: "master"`), up to `[spawn] max_depth` levels.
+In the TUI, the mode is the first step of the new-session wizard. Any agent can split its work across children through the MCP tools; children appear indented under their parent.
 
-Favoriting or restoring a master brings back its children too.
+Favoriting or restoring an agent brings back its children too.
 
 ## New session wizard
 
 `n` opens a short wizard, one question per step. Steps that don't apply are skipped:
 
-1. **Type**: coding, PR review, master, chat or a custom mode.
+1. **Type**: coding, PR review, bug fix, chat or a custom mode.
 2. **Agent**: skipped when only one agent CLI is installed.
-3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Master and chat skip this.
+3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Bug fix asks for the ticket, then a project. Chat skips this.
 4. **Worktree**: when the folder is in a git repo, choose whether the agent gets its own [worktree](#worktrees).
 5. **Details**: the first prompt (task, notes or question) and an optional name.
 
@@ -173,7 +176,7 @@ A project's configured agent is used unless you picked one in the agent step.
 
 ## Worktrees
 
-A coding agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
+A coding or bug-fix agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
 
 The worktree is created at `<repo>-worktrees/<slug>` next to the main checkout, on a new `cockpit/<slug>` branch from the chosen folder's current HEAD. The slug comes from the label, else the session name, else the folder name. If the folder or branch already exists, `-2`, `-3`, ... is appended.
 
@@ -230,7 +233,7 @@ command = "nvim"   # "" disables the editor pane
 width = "50%"
 
 [spawn]
-max_depth = 3   # agent tree levels a master can grow (master -> sub-master -> coder); 0 = no limit
+max_depth = 3   # agent tree levels (agent -> child -> grandchild); 0 = no limit
 ```
 
 Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane. When claude ends a turn without running its hooks in the agent's pane, cockpit picks the end up from the session transcript and notifies once.

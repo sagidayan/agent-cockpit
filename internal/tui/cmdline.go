@@ -13,9 +13,9 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/changes"
 	"github.com/sagidayan/agent-cockpit/internal/config"
 	"github.com/sagidayan/agent-cockpit/internal/control"
-	"github.com/sagidayan/agent-cockpit/internal/gitdiff"
 	"github.com/sagidayan/agent-cockpit/internal/launch"
 	"github.com/sagidayan/agent-cockpit/internal/modes"
 	"github.com/sagidayan/agent-cockpit/internal/paths"
@@ -278,18 +278,15 @@ func popup(dir, title, command string) tea.Cmd {
 
 func cmdDiff(m model, _ string) (model, tea.Cmd) {
 	return withSelected(m, func(a agents.Live) (model, tea.Cmd) {
-		return m, review(cmp.Or(a.Agent.Cwd, a.Pane.Cwd), name(a))
+		return m, review(a, slices.Clone(m.all))
 	})
 }
 
-func review(dir, title string) tea.Cmd {
+func review(a agents.Live, live []agents.Live) tea.Cmd {
 	return func() tea.Msg {
-		diff, err := gitdiff.Collect(dir)
-		if err != nil {
-			return actionMsg{err: err}
-		}
+		diff := changes.Diff(a, live)
 		if diff == "" {
-			return actionMsg{notice: "no changes in " + dir}
+			return actionMsg{notice: "no changes found for " + name(a)}
 		}
 		f, err := os.CreateTemp("", "cockpit-*.diff")
 		if err != nil {
@@ -300,7 +297,7 @@ func review(dir, title string) tea.Cmd {
 			return actionMsg{err: err}
 		}
 		file := launch.Quote(f.Name())
-		return actionMsg{err: tmux.Popup(dir, "diff · "+title, diffViewer()+" "+file+"; rm -f "+file)}
+		return actionMsg{err: tmux.Popup(a.Pane.Cwd, "diff · "+name(a), diffViewer()+" "+file+"; rm -f "+file)}
 	}
 }
 
