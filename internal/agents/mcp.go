@@ -68,7 +68,7 @@ func mcpDown(kind, pid string, procs map[string]process) bool {
 		if !descends(p, pid, procs) {
 			continue
 		}
-		switch filepath.Base(proc.args[0]) {
+		switch command(proc.args) {
 		case "cockpit":
 			if len(proc.args) > 1 && proc.args[1] == "mcp" {
 				return false
@@ -78,6 +78,13 @@ func mcpDown(kind, pid string, procs map[string]process) bool {
 		}
 	}
 	return agentAge > mcpGrace
+}
+
+func command(args []string) string {
+	if len(args) > 1 && filepath.Base(args[0]) == "node" {
+		return filepath.Base(args[1])
+	}
+	return filepath.Base(args[0])
 }
 
 func descends(p, root string, procs map[string]process) bool {

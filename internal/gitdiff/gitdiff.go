@@ -27,6 +27,11 @@ func Root(path string) (string, bool) {
 	return strings.TrimSpace(top), err == nil
 }
 
+func Ignored(root, path string) bool {
+	_, err := git(root, "check-ignore", "-q", "--", path)
+	return err == nil
+}
+
 func Nested(dir string) []string {
 	var roots []string
 	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {

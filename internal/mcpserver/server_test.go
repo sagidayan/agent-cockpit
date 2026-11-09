@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -38,4 +39,21 @@ func TestAddToolSurvivesPanics(t *testing.T) {
 	log, err := os.ReadFile(state.MCPLog())
 	require.NoError(t, err)
 	require.Contains(t, string(log), "panic in boom: kaboom")
+}
+
+func TestLogRotates(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	path := state.MCPLog()
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+	require.NoError(t, os.WriteFile(path, make([]byte, maxLog+1), 0o644))
+
+	logf("fresh")
+
+	old, err := os.Stat(path + ".1")
+	require.NoError(t, err)
+	require.EqualValues(t, maxLog+1, old.Size())
+	log, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(log), "fresh")
+	require.Less(t, len(log), 100)
 }

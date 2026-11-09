@@ -66,8 +66,11 @@ func TestDiff(t *testing.T) {
 	broken := repo(t, filepath.Join(root, "broken"), "x")
 	require.NoError(t, os.WriteFile(filepath.Join(broken, ".git", "index"), []byte("garbage"), 0o644))
 	loose := filepath.Join(root, "notes.md")
+	require.NoError(t, os.WriteFile(filepath.Join(own, ".gitignore"), []byte("secret.env\n"), 0o644))
+	ignored := filepath.Join(own, "secret.env")
+	require.NoError(t, os.WriteFile(ignored, []byte("hidden change\n"), 0o644))
 
-	parent := agent("%1", "", own, edits(t, filepath.Join(elsewhere, "f.txt"), filepath.Join(clean, "x"), loose, filepath.Join(home, ".claude", "plans", "p.md")))
+	parent := agent("%1", "", own, edits(t, filepath.Join(elsewhere, "f.txt"), filepath.Join(clean, "x"), loose, ignored, filepath.Join(home, ".claude", "plans", "p.md")))
 	parent.Touched = []string{closed}
 	chatAgent := agent("%3", "%2", cloned, "")
 	chatAgent.Pane.Cwd = chat
@@ -85,8 +88,8 @@ func TestDiff(t *testing.T) {
 		wantNot []string
 	}{
 		{"parent covers its repo, edits elsewhere, closed and live descendants", parent,
-			[]string{"# " + own, "# " + elsewhere, "# " + child, "# " + closed, "# " + cloned, "+own change", "+edited elsewhere", "+child change", "+closed child change", "+cloned change", "# " + loose},
-			[]string{"unrelated", "# " + clean, ".claude"}},
+			[]string{"# " + own, "# " + elsewhere, "# " + child, "# " + closed, "# " + cloned, "+own change", "+edited elsewhere", "+child change", "+closed child change", "+cloned change", "# " + loose, "# gitignored, no diff available:\n# " + ignored},
+			[]string{"unrelated", "# " + clean, ".claude", "hidden change", "outside git, no diff available:\n# " + ignored}},
 		{"chat that moved into one clone still finds the other", chatAgent, []string{"# " + cloned, "# " + other, "+other clone change"}, []string{"own change", "child change"}},
 		{"a failing repo is reported without hiding the rest", agent("%5", "", own, edits(t, filepath.Join(broken, "f.txt"))), []string{"# " + broken + ": git", "+own change"}, nil},
 		{"clean repo has nothing", agent("%9", "", clean, ""), nil, nil},
@@ -116,6 +119,8 @@ func TestTouched(t *testing.T) {
 	own := repo(t, filepath.Join(root, "own"), "")
 	elsewhere := repo(t, filepath.Join(root, "elsewhere"), "")
 	loose := filepath.Join(root, "notes.md")
-	a := agent("%1", "%0", own, edits(t, filepath.Join(elsewhere, "f.txt"), loose))
-	require.Equal(t, []string{own, elsewhere, loose}, Touched(a))
+	require.NoError(t, os.WriteFile(filepath.Join(own, ".gitignore"), []byte("secret.env\n"), 0o644))
+	ignored := filepath.Join(own, "secret.env")
+	a := agent("%1", "%0", own, edits(t, filepath.Join(elsewhere, "f.txt"), loose, ignored))
+	require.Equal(t, []string{own, elsewhere, loose, ignored}, Touched(a))
 }

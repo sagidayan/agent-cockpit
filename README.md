@@ -89,7 +89,7 @@ Commands:
 | `:rename [name]` | label the agent in cockpit (same as `r`) |
 | `:sort status\|recent\|name\|cost\|location` | change the list order (favorites always stay on top); `location` is your own order |
 | `:project [add <name> [dir] \| rm <name>]` | list or manage projects (dir defaults to the selected agent's) |
-| `:diff` | open the agent's changes in a popup with `[editor] command`, else `$VISUAL`, `$EDITOR` or `less`. Covers every repo it touched: its folder (including a worktree it moved into), repos cloned inside a temp folder (any folder under `/tmp` or `$TMPDIR`, like chat and review folders), repos of files it edited elsewhere (claude, including its subagents) and its children's repos, also after they were closed. Each repo is diffed against the merge-base with the default branch, so committed, uncommitted and untracked changes all show. Edited files outside git are listed |
+| `:diff` | open the agent's changes in a popup with `[editor] command`, else `$VISUAL`, `$EDITOR` or `less`. Covers every repo it touched: its folder (including a worktree it moved into), repos cloned inside a temp folder (any folder under `/tmp` or `$TMPDIR`, like chat and review folders), repos of files it edited elsewhere (claude, including its subagents) and its children's repos, also after they were closed. Each repo is diffed against the merge-base with the default branch, so committed, uncommitted and untracked changes all show. Edited files outside git or gitignored are listed |
 | `:shell` | open a shell in the agent's directory in a popup |
 | `:!<cmd>` | run a command in the agent's directory in a popup |
 | `:restore` | restore sessions from last time |
@@ -100,7 +100,7 @@ Mouse: click a card to view it, double-click to interact, scroll to move through
 
 Statuses: working, background (the turn ended but background tasks or scheduled wakeups are still pending), needs input, done, idle.
 
-A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer says how to reconnect: `/mcp` → cockpit → reconnect in claude, a restart in opencode. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`.
+A claude or opencode agent whose `cockpit mcp` server isn't running (30s after it started) shows **⚠ MCP down**, and the footer says how to reconnect: `/mcp` → cockpit → reconnect in claude, a restart in opencode. The server logs its start, exit and any tool panic to `~/.local/state/agent-cockpit/mcp.log`, rotated to `mcp.log.1` past 1 MiB. Codex isn't checked: by default it runs MCP servers under its shared background daemon, outside the agent's process tree.
 
 When the cockpit pane loses focus its header dims and shows "viewer has focus". This needs `set -g focus-events on` in your tmux config.
 

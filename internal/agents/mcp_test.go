@@ -43,6 +43,9 @@ func TestMCPDown(t *testing.T) {
   703   702   09:58 claude bg-spare --bg-spare /tmp/y.sock
   704   703   09:57 /Users/me/bin/cockpit mcp
   800     1   10:00 opencode
+  900     1   10:00 /usr/local/bin/node /usr/local/bin/claude
+  901   900   09:59 /Users/me/bin/cockpit mcp
+  950     1   10:00 node /Users/me/.npm-global/bin/claude --resume abc
 `)
 	cases := []struct {
 		name string
@@ -58,6 +61,8 @@ func TestMCPDown(t *testing.T) {
 		{"unchecked kind", "codex", "600", false},
 		{"only a spare session of the claude daemon has a server", "claude", "700", true},
 		{"opencode without a server", "opencode", "800", true},
+		{"npm claude with its server", "claude", "900", false},
+		{"npm claude without a server", "claude", "950", true},
 		{"unknown pane pid", "claude", "", false},
 	}
 	for _, tc := range cases {

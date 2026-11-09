@@ -13,6 +13,8 @@ import (
 	"github.com/sagidayan/agent-cockpit/internal/state"
 )
 
+const maxLog = 1 << 20
+
 func Run() error {
 	logf("start, pane %s", os.Getenv("TMUX_PANE"))
 	err := newServer().Run(context.Background(), &mcp.StdioTransport{})
@@ -36,6 +38,9 @@ func logf(format string, args ...any) {
 	path := state.MCPLog()
 	if os.MkdirAll(filepath.Dir(path), 0o755) != nil {
 		return
+	}
+	if info, err := os.Stat(path); err == nil && info.Size() > maxLog {
+		_ = os.Rename(path, path+".1")
 	}
 	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {

@@ -14,13 +14,13 @@ import (
 
 func Diff(a agents.Live, live []agents.Live) string {
 	r := newResolver()
-	var repos, loose []string
+	var all found
 	for _, x := range slices.Backward(agents.Subtree(live, a)) {
-		rs, ls := r.own(x)
-		repos, loose = add(repos, rs...), add(loose, ls...)
+		f := r.own(x)
+		all = found{add(all.repos, f.repos...), add(all.loose, f.loose...), add(all.ignored, f.ignored...)}
 	}
 	var parts []string
-	for _, repo := range repos {
+	for _, repo := range all.repos {
 		d, err := gitdiff.Collect(repo)
 		switch {
 		case err != nil:
@@ -29,15 +29,25 @@ func Diff(a agents.Live, live []agents.Live) string {
 			parts = append(parts, d)
 		}
 	}
-	if len(loose) > 0 {
-		parts = append(parts, "# edited outside git, no diff available:\n# "+strings.Join(loose, "\n# ")+"\n")
-	}
+	parts = append(parts, listing("edited outside git", all.loose)...)
+	parts = append(parts, listing("gitignored", all.ignored)...)
 	return strings.Join(parts, "\n")
 }
 
+func listing(title string, files []string) []string {
+	if len(files) == 0 {
+		return nil
+	}
+	return []string{"# " + title + ", no diff available:\n# " + strings.Join(files, "\n# ") + "\n"}
+}
+
 func Touched(a agents.Live) []string {
-	repos, loose := newResolver().own(a)
-	return append(repos, loose...)
+	f := newResolver().own(a)
+	return slices.Concat(f.repos, f.loose, f.ignored)
+}
+
+type found struct {
+	repos, loose, ignored []string
 }
 
 type resolver struct {
@@ -62,31 +72,34 @@ func (r resolver) root(path string) (string, bool) {
 	return root, root != ""
 }
 
-func (r resolver) own(x agents.Live) (repos, loose []string) {
+func (r resolver) own(x agents.Live) found {
+	var f found
 	for _, dir := range []string{x.Agent.Cwd, x.Pane.Cwd} {
 		if root, ok := r.root(dir); ok {
-			repos = add(repos, root)
+			f.repos = add(f.repos, root)
 		} else if paths.Disposable(dir) {
-			repos = add(repos, gitdiff.Nested(dir)...)
+			f.repos = add(f.repos, gitdiff.Nested(dir)...)
 		}
 	}
 	for _, p := range x.Touched {
-		repos, loose = r.place(p, p, repos, loose)
+		r.place(p, p, &f)
 	}
-	for _, f := range transcript.Edited(x.Agent) {
-		repos, loose = r.place(filepath.Dir(f), f, repos, loose)
+	for _, e := range transcript.Edited(x.Agent) {
+		r.place(filepath.Dir(e), e, &f)
 	}
-	return repos, loose
+	return f
 }
 
-func (r resolver) place(lookup, path string, repos, loose []string) ([]string, []string) {
-	if root, ok := r.root(lookup); ok {
-		return add(repos, root), loose
+func (r resolver) place(lookup, path string, f *found) {
+	root, ok := r.root(lookup)
+	switch {
+	case ok && !isDir(path) && gitdiff.Ignored(root, path):
+		f.repos, f.ignored = add(f.repos, root), add(f.ignored, path)
+	case ok:
+		f.repos = add(f.repos, root)
+	case !isDir(path) && !strings.HasPrefix(path, filepath.Join(r.home, ".claude")+"/"):
+		f.loose = add(f.loose, path)
 	}
-	if isDir(path) || strings.HasPrefix(path, filepath.Join(r.home, ".claude")+"/") {
-		return repos, loose
-	}
-	return repos, add(loose, path)
 }
 
 func isDir(p string) bool {
