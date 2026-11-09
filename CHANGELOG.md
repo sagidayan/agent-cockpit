@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.3
 
 - Every agent can delegate to child agents, so the master mode is gone. The guidance on splitting work and closing children now comes with the cockpit MCP server.
 - New bug fix mode: give it a ticket key or URL and a project, it reads the ticket, fixes the bug and adds a regression test. In the wizard, `cockpit new --mode bug --ticket` and `spawn_agent` with `mode: "bug"`.
