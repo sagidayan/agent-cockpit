@@ -181,6 +181,15 @@ func TestRefreshViewOrder(t *testing.T) {
 			[]string{"%1", "%2", "%3"},
 			2,
 		},
+		{
+			"grouped children keep their order across folders",
+			inDirs([]agents.Live{agent("%2", ""), agent("%4", "%2"), agent("%3", "%2")}, "/a", "/b", "/a"),
+			nil,
+			true,
+			"%4",
+			[]string{"%2", "%4", "%3"},
+			1,
+		},
 	}
 	for _, tc := range cases {
 		tc := tc

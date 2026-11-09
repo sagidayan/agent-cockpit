@@ -20,14 +20,28 @@ func groupDir(a agents.Live) string {
 }
 
 func byGroup(list []agents.Live) {
+	byID := make(map[string]agents.Live, len(list))
+	for _, a := range list {
+		byID[a.ID] = a
+	}
+	key := func(a agents.Live) string {
+		for range len(list) {
+			p, ok := byID[a.Parent]
+			if !ok {
+				break
+			}
+			a = p
+		}
+		return groupDir(a)
+	}
 	var seen []string
 	for _, a := range list {
-		if g := groupDir(a); !slices.Contains(seen, g) {
+		if g := key(a); !slices.Contains(seen, g) {
 			seen = append(seen, g)
 		}
 	}
 	slices.SortStableFunc(list, func(a, b agents.Live) int {
-		return cmp.Compare(slices.Index(seen, groupDir(a)), slices.Index(seen, groupDir(b)))
+		return cmp.Compare(slices.Index(seen, key(a)), slices.Index(seen, key(b)))
 	})
 }
 
