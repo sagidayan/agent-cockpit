@@ -207,33 +207,3 @@ func TestRefreshViewOrder(t *testing.T) {
 		})
 	}
 }
-
-func TestFamily(t *testing.T) {
-	t.Parallel()
-	agent := func(id, parent string) agents.Live {
-		return agents.Live{Pane: tmux.Pane{ID: id, Parent: parent}}
-	}
-	all := []agents.Live{agent("%1", ""), agent("%2", "%1"), agent("%3", "%2"), agent("%4", ""), agent("%5", "%5")}
-	cases := []struct {
-		name string
-		id   string
-		want []string
-	}{
-		{"master with grandchildren", "%1", []string{"%1", "%2", "%3"}},
-		{"child brings its own children", "%2", []string{"%2", "%3"}},
-		{"no children", "%4", []string{"%4"}},
-		{"self parent ignored", "%5", []string{"%5"}},
-	}
-	for _, tc := range cases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			m := model{all: all}
-			var ids []string
-			for _, a := range m.family(all[slices.IndexFunc(all, func(a agents.Live) bool { return a.ID == tc.id })]) {
-				ids = append(ids, a.ID)
-			}
-			require.Equal(t, tc.want, ids)
-		})
-	}
-}

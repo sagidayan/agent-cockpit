@@ -48,7 +48,6 @@ func commands() []command {
 		{"diff", "", "review the agent's changes in your editor", cmdDiff},
 		{"shell", "", "open a shell in the agent's directory", cmdShell},
 		{"goto", "", "jump to the agent's own window", cmdGoto},
-		{"move", "", "move the agent into the cockpit tmux session", cmdMove},
 		{"restore", "", "restore sessions from last time", cmdRestore},
 		{"fav", "", "toggle favorite on the selected agent", cmdFav},
 		{"favorites", "", "list favorites and resume old ones", cmdFavorites},
@@ -205,43 +204,6 @@ func cmdStop(m model, _ string) (model, tea.Cmd) {
 		}
 		return m, nil
 	})
-}
-
-func cmdMove(m model, _ string) (model, tea.Cmd) {
-	return withSelected(m, func(a agents.Live) (model, tea.Cmd) {
-		if m.view == nil {
-			m.actionErr = errors.New("run cockpit inside tmux to move sessions")
-			return m, nil
-		}
-		if m.actionErr = m.view.restore(); m.actionErr != nil {
-			return m, nil
-		}
-		n := 0
-		for _, f := range m.family(a) {
-			moved, err := control.Move(f, m.view.self)
-			if m.actionErr = err; err != nil {
-				return m, load
-			}
-			if moved {
-				n++
-			}
-		}
-		m.notice = fmt.Sprintf("✓ moved %d agent(s) to the cockpit session", n)
-		if n == 0 {
-			m.notice = name(a) + " is already in the cockpit session"
-		}
-		return m, load
-	})
-}
-
-func (m model) family(a agents.Live) []agents.Live {
-	all := []agents.Live{a}
-	for _, c := range m.all {
-		if c.Parent == a.ID && c.ID != a.ID {
-			all = append(all, m.family(c)...)
-		}
-	}
-	return all
 }
 
 func cmdKill(m model, _ string) (model, tea.Cmd) {

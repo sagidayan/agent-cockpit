@@ -2,6 +2,7 @@
 
 ## v0.0.3
 
+- Cockpit only ever changes its own `cockpit` tmux session. Agents in your other sessions are listed read-only, every mutating tmux command is checked against its target's session, and `kill-server` / `kill-session` are refused. `cockpit` run from another session opens its dashboard in the `cockpit` session. `m` / `:move` are gone and `gt` switches within the `cockpit` session.
 - Every agent can delegate to child agents, so the master mode is gone. The guidance on splitting work and closing children now comes with the cockpit MCP server.
 - New bug fix mode: give it a ticket key or URL and a project, it reads the ticket, fixes the bug and adds a regression test. In the wizard, `cockpit new --mode bug --ticket` and `spawn_agent` with `mode: "bug"`.
 - `d` and `get_diff` show every repo the agent touched: its folder, repos cloned inside a temp folder, repos of files it edited elsewhere and its children's repos, also after they were closed. Edited files outside git are listed.

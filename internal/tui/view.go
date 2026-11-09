@@ -503,7 +503,7 @@ func (m model) helpView() string {
 	keys := [][2]string{
 		{"j/k ↑↓", "move"}, {"gg G", "first / last (also home/end)"}, {"J/K", "move the agent down / up the list (also pgdn/pgup)"}, {"1-9", "jump to agent"},
 		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
-		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "move agent to the cockpit session"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
+		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
 		{"x", "dismiss restore"}, {"?", "this help"}, {"q", "quit"},

@@ -22,10 +22,9 @@ import (
 )
 
 const (
-	defaultSession = "cockpit"
-	editorOption   = "@cockpit_editor_for"
-	modeOption     = "@cockpit_mode"
-	parentOption   = "@cockpit_parent"
+	editorOption = "@cockpit_editor_for"
+	modeOption   = "@cockpit_mode"
+	parentOption = "@cockpit_parent"
 )
 
 type Request struct {
@@ -33,7 +32,7 @@ type Request struct {
 }
 
 func Session() (string, error) {
-	return defaultSession, tmux.EnsureSession(defaultSession)
+	return tmux.Session, tmux.EnsureSession()
 }
 
 func Spawn(session string, r Request) (string, error) {
@@ -162,6 +161,9 @@ func Stop(a agents.Live) error {
 }
 
 func Kill(a agents.Live) (string, error) {
+	if a.Session != tmux.Session {
+		return "", fmt.Errorf("%s is in your %q tmux session; cockpit only closes agents in its own %q session", a.ID, a.Session, tmux.Session)
+	}
 	handOver(a)
 	_ = state.AddClosed(record(a))
 	editors, _ := tmux.PanesWithOption(editorOption, a.ID)
@@ -282,24 +284,6 @@ func handOver(a agents.Live) {
 		p.ClosedCost += spent
 		return p, true
 	})
-}
-
-func Move(a agents.Live, cockpitPane string) (bool, error) {
-	session, err := Session()
-	if err != nil {
-		return false, err
-	}
-	window, err := tmux.WindowOf(a.ID)
-	if err != nil {
-		return false, err
-	}
-	if here, err := tmux.HasWindow(session, window); err != nil || here {
-		return false, err
-	}
-	if own, _ := tmux.WindowOf(cockpitPane); own == window {
-		return true, tmux.BreakPane(a.ID, session, a.WindowName)
-	}
-	return true, tmux.MoveWindow(window, session)
 }
 
 func SetLabel(a agents.Live, label string) error {

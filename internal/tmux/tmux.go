@@ -22,7 +22,47 @@ type Pane struct {
 	PID        string
 }
 
+const Session = "cockpit"
+
+var mutating = []string{
+	"send-keys", "paste-buffer", "split-window", "join-pane", "swap-pane", "select-pane", "kill-pane",
+	"new-window", "select-window", "set-option", "respawn-pane", "switch-client",
+}
+
+func targetSession(target string) (string, error) {
+	out, err := exec.Command("tmux", "display-message", "-p", "-t", target, "#{session_name}").Output()
+	return strings.TrimSpace(string(out)), err
+}
+
+func guard(args []string, sessionOf func(string) (string, error)) error {
+	if args[0] == "kill-server" || args[0] == "kill-session" {
+		return fmt.Errorf("cockpit never runs tmux %s", args[0])
+	}
+	if !slices.Contains(mutating, args[0]) {
+		return nil
+	}
+	if !slices.Contains(args, "-t") {
+		return fmt.Errorf("tmux %s needs an explicit target in the %q session", args[0], Session)
+	}
+	for i, a := range args[:len(args)-1] {
+		if a != "-t" && a != "-s" {
+			continue
+		}
+		s, err := sessionOf(args[i+1])
+		if err != nil {
+			return fmt.Errorf("tmux %s: no target %s", args[0], args[i+1])
+		}
+		if s != Session {
+			return fmt.Errorf("%s is in your %q tmux session; cockpit only changes its own %q session", args[i+1], s, Session)
+		}
+	}
+	return nil
+}
+
 func run(args ...string) (string, error) {
+	if err := guard(args, targetSession); err != nil {
+		return "", err
+	}
 	out, err := exec.Command("tmux", args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("tmux %s: %w: %s", strings.Join(args, " "), err, out)
@@ -144,43 +184,6 @@ func NewWindow(session, name, dir, command string) (string, error) {
 	return strings.TrimSpace(out), err
 }
 
-func WindowOf(pane string) (string, error) {
-	out, err := run("display-message", "-p", "-t", pane, "#{window_id}")
-	return strings.TrimSpace(out), err
-}
-
-func HasWindow(session, window string) (bool, error) {
-	out, err := run("list-windows", "-t", "="+session, "-F", "#{window_id}")
-	return slices.Contains(strings.Fields(out), window), err
-}
-
-func Link(window, after string) error {
-	_, err := run("link-window", "-a", "-s", window, "-t", after)
-	return err
-}
-
-func Unlink(target string) error {
-	_, err := run("unlink-window", "-t", target)
-	return err
-}
-
-func MoveWindow(window, session string) error {
-	_, err := run("move-window", "-d", "-s", window, "-t", session+":")
-	return err
-}
-
-func BreakPane(pane, session, name string) error {
-	_, err := run("break-pane", "-d", "-s", pane, "-t", session+":", "-n", name)
-	return err
-}
-
-func SelectWindow(target, pane string) error {
-	if _, err := run("select-window", "-t", target); err != nil {
-		return err
-	}
-	return Select(pane)
-}
-
 func SessionOf(pane string) (string, error) {
 	out, err := run("display-message", "-p", "-t", pane, "#{session_name}")
 	return strings.TrimSpace(out), err
@@ -257,11 +260,11 @@ func PanesWithOption(name, value string) ([]string, error) {
 	return ids, nil
 }
 
-func EnsureSession(name string) error {
-	if _, err := run("has-session", "-t", "="+name); err == nil {
+func EnsureSession() error {
+	if _, err := run("has-session", "-t", "="+Session); err == nil {
 		return nil
 	}
-	_, err := run("new-session", "-d", "-s", name)
+	_, err := run("new-session", "-d", "-s", Session)
 	return err
 }
 
