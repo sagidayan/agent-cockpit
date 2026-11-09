@@ -14,6 +14,8 @@
 - `:closed` lists the last 20 closed agents with their last reply, diff summary and cost, and resumes one with `enter`.
 - `:group` shows a header per project above its agents, keeping your order inside each group.
 >>>>>>> 0510747 (Add a recently closed list and grouping by project)
+- `:restart` and `cockpit restart` relaunch an agent in its pane, resuming its session, so an agent whose MCP server died gets a fresh one.
+- Closing an agent removes its worktree and branch when they hold no changes; `:clean` removes leftover clean cockpit worktrees.
 - The MCP server no longer dies when a tool panics, and logs its start, exit and panics to `~/.local/state/agent-cockpit/mcp.log`.
 
 ## v0.0.2
