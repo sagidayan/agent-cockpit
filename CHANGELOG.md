@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.0.7
 
 - Fix: `:restart` no longer loses the agent's saved state (status, pause, touched repos, closed children's cost) when the old session's exit hook fires during the relaunch.
 - Claude and OpenCode agents can no longer kill parts of your tmux server from their shell (`kill-server`, `kill-session`, `kill-window`, `kill-pane`, `respawn-*`, `unlink-window` without `-L`/`-S`). Run `cockpit init` to install the new hook.
