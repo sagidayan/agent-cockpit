@@ -21,7 +21,6 @@ func TestResumeClosed(t *testing.T) {
 		{"outside tmux", state.Closed{SessionID: "s1", Dir: dir}, "run cockpit inside tmux"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			next, cmd := model{overlay: "closed"}.resumeClosed(tc.closed)

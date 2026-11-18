@@ -53,7 +53,6 @@ func TestRead(t *testing.T) {
 		{"meta entries ignored", []string{prompt, reply, ended, meta}, Turn{Prompt: "fix the bug", Reply: "Fixed it.", Started: at("10:00:00"), Ended: at("10:00:04")}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, ok := Read(write(t, t.TempDir(), "s", tc.lines...))
@@ -87,7 +86,6 @@ func TestConversation(t *testing.T) {
 		{"empty", nil, 10, nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, ok := Conversation(write(t, t.TempDir(), "s", tc.lines...), tc.n)
@@ -120,7 +118,6 @@ func TestEdited(t *testing.T) {
 		}, nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			path := tc.setup(t, t.TempDir())
@@ -148,7 +145,6 @@ func TestSettle(t *testing.T) {
 		{"done untouched", []string{prompt, reply, ended}, state.Done, before, state.Done, "hook"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			a := state.Agent{Kind: "claude", Status: tc.status, Message: "hook", UpdatedAt: tc.updated, Transcript: write(t, t.TempDir(), "s", tc.lines...)}

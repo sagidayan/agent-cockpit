@@ -31,7 +31,6 @@ func TestIndexAndRunning(t *testing.T) {
 		{"label differs", agent("opencode", "/b", "api", ""), -1},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Index(list, tc.agent))

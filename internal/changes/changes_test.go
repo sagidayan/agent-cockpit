@@ -95,7 +95,6 @@ func TestDiff(t *testing.T) {
 		{"clean repo has nothing", agent("%9", "", clean, ""), nil, nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got := Diff(tc.target, live)
@@ -145,7 +144,6 @@ func TestSummary(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Summary(tc.in))

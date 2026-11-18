@@ -23,7 +23,6 @@ func TestForDir(t *testing.T) {
 		{"unknown", "/tmp", ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			p, ok := ForDir(list, tc.dir)

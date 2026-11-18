@@ -81,7 +81,6 @@ func TestJoin(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			live, stale := join(tc.panes, tc.stored, "s1")
@@ -133,7 +132,6 @@ func TestSettled(t *testing.T) {
 		{"already done", state.Done, ended, false, state.Done, "hook"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			prev := state.Agent{Pane: "%1", Kind: "claude", Cwd: "/repo", Status: tc.status, Message: "hook", UpdatedAt: start.Add(-time.Minute), Transcript: transcriptFile(t, start, tc.end)}
@@ -196,7 +194,6 @@ func TestTreeCost(t *testing.T) {
 		{"separate tree", 3, 1},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.InDelta(t, tc.want, TreeCost(live, live[tc.root]), 1e-9)
@@ -251,7 +248,6 @@ func TestCurrent(t *testing.T) {
 		{"paused agent that went idle still shows paused", state.Agent{Kind: "codex", Status: state.Idle, Paused: true}, state.Paused},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Current(tc.agent).Status)

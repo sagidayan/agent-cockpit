@@ -59,7 +59,6 @@ func TestRequest(t *testing.T) {
 		{"explicit agent when none installed", []string{"--agent", "codex"}, true, control.Request{Kind: "codex", Dir: "/work", Mode: "code"}, ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			installed := []string{"claude", "opencode"}
@@ -93,7 +92,6 @@ func TestMessage(t *testing.T) {
 		{"blank words", []string{" "}, "", "", true},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := message(tc.words, strings.NewReader(tc.stdin))
@@ -125,7 +123,6 @@ func TestPick(t *testing.T) {
 		{"unknown", "nope", 0, `no favorite matches "nope"`},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := pick(list, tc.key)
@@ -194,7 +191,6 @@ func TestTables(t *testing.T) {
 		{"no favorites", favTable(nil, nil), ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, tc.got)

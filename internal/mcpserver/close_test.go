@@ -30,7 +30,6 @@ func TestClosable(t *testing.T) {
 		{"missing pane", "%9", "%1", nil, "no agent in pane %9"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := closable(live, tc.pane, tc.caller)

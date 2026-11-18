@@ -25,7 +25,6 @@ func TestWanted(t *testing.T) {
 		{"event not configured", agent(state.Idle, ""), agent(state.Working, "x"), false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if got := Wanted(cfg, tc.prev, tc.cur); got != tc.want {
@@ -54,7 +53,6 @@ func TestCompose(t *testing.T) {
 		{"markdown stripped", agent(state.Done, "## Summary\n- **Fixed** the `retry` bug\n- added tests"), identity{label: "x"}, "✅ x finished", "Summary Fixed the retry bug added tests\nClaude · payments-service"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			n := compose(tc.a, tc.id)

@@ -29,7 +29,6 @@ func TestPausePlan(t *testing.T) {
 		{"background and waiting agents are left alone", []agents.Live{agent("%1", state.Background), agent("%2", state.NeedsInput)}, false, false, nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			resume, targets := pausePlan(tc.scope, tc.pauseFirst)

@@ -22,7 +22,6 @@ func TestReviewNameAndDir(t *testing.T) {
 		{"not a url", "nonsense", "review", "/tmp/prs/review"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.wantName, ReviewName(tc.url))
@@ -47,7 +46,6 @@ func TestTicketName(t *testing.T) {
 		{"padded key", "  SP-3 ", "bug SP-3"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, TicketName(tc.ticket))
@@ -85,7 +83,6 @@ func TestBuild(t *testing.T) {
 		{"worktree needs a folder mode", Chat, Spec{Kind: "claude", Worktree: true}, "worktree needs a mode that works in a folder", "", "", ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r, err := Build(mode(tc.mode), tc.spec)

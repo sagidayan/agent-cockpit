@@ -40,7 +40,6 @@ func TestSetDetail(t *testing.T) {
 		{"new selection resets scroll", 1, detailMsg{id: "%2", screen: "$ ls", fromPane: true}, 0, "$ ls"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := detailModel()
@@ -67,7 +66,6 @@ func TestScrollDetail(t *testing.T) {
 		{"clamps at bottom", 500, maxTop},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, m.scrollDetail(tc.n).detail.top)

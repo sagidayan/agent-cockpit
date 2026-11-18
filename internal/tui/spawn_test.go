@@ -36,7 +36,6 @@ func TestMatchDirs(t *testing.T) {
 		{"no slash", "api", nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, matchDirs(tc.input))
@@ -73,7 +72,6 @@ func TestMatchProjects(t *testing.T) {
 		{"no match", "zzz", nil},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var got []string
@@ -117,7 +115,6 @@ func TestSpawnSteps(t *testing.T) {
 		{"chat with one agent", modes.Chat, one, list, "", false, []spawnStep{stepMode, stepDetails}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			f := testForm(tc.kinds, tc.list, "/")

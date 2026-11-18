@@ -24,7 +24,6 @@ func TestCommand(t *testing.T) {
 		{"unknown kind", "vim", "x", ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Command(tc.kind, tc.resumeID))
@@ -48,7 +47,6 @@ func TestStart(t *testing.T) {
 		{"unknown kind", "vim", "x", ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Start(tc.kind, tc.prompt))

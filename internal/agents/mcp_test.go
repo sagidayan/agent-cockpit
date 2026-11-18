@@ -66,7 +66,6 @@ func TestMCPDown(t *testing.T) {
 		{"unknown pane pid", "claude", "", false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, mcpDown(tc.kind, tc.pid, procs))

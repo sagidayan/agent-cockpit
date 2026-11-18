@@ -25,7 +25,6 @@ func TestIsChat(t *testing.T) {
 		{"home", Expand("~"), false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, IsChat(tc.dir))
@@ -52,7 +51,6 @@ func TestDisposable(t *testing.T) {
 		{"home", Expand("~"), false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, Disposable(tc.dir))

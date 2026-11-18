@@ -71,7 +71,6 @@ func TestCreate(t *testing.T) {
 		{"not a repo", func(t *testing.T, _ string) string { return t.TempDir() }, "", "", "not in a git repository"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r := repo(t)
@@ -104,7 +103,6 @@ func TestInRepo(t *testing.T) {
 		{"missing folder", filepath.Join(r, "nope"), false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, InRepo(tc.dir))
@@ -167,7 +165,6 @@ func TestRemove(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r := repo(t)
@@ -205,7 +202,6 @@ func TestOf(t *testing.T) {
 		{"plain folder", t.TempDir(), false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			_, ok := Of(tc.dir)

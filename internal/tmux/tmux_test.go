@@ -20,7 +20,6 @@ func TestParsePanes(t *testing.T) {
 		{"malformed line skipped", "garbage\n%3\tw\t3\tapi\t/a\tzsh\t\t\t\t13\n", []string{"%3"}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var ids []string
@@ -78,7 +77,6 @@ func TestGuard(t *testing.T) {
 		{"kill session", []string{"kill-session", "-t", "%1"}, "never runs tmux kill-session"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			err := guard(tc.args, describe)

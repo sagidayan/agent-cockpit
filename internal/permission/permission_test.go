@@ -63,7 +63,6 @@ func TestParse(t *testing.T) {
 		{"codex", "codex", "claude-bash.txt", nil, nil, "isn't supported for codex"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			screen, err := os.ReadFile("testdata/" + tc.fixture)

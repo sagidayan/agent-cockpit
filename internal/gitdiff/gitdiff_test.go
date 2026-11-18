@@ -82,7 +82,6 @@ func TestCollect(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := Collect(tc.setup(t, repo(t)))
@@ -126,7 +125,6 @@ func TestRootAndNested(t *testing.T) {
 		{"outside git", filepath.Join(scratch, "plain", "dir", "x.go"), "", false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, ok := Root(tc.path)

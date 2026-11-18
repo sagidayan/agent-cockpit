@@ -20,7 +20,6 @@ func TestTruncate(t *testing.T) {
 		{"multibyte cut", "aé", 2, "a\n[truncated: showing 2 of 3 bytes]"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if got := truncate(tc.in, tc.limit); got != tc.want {
@@ -63,7 +62,6 @@ func TestLevel(t *testing.T) {
 		{"cycle stops", "%8", len(parents) + 1},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, level(tc.pane, parents))
@@ -86,7 +84,6 @@ func TestSpawnSpec(t *testing.T) {
 		{"relative dir", spawnArgs{Dir: "rel"}, "", "not an absolute directory"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := spawnSpec(tc.in)

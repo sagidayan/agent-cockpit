@@ -38,7 +38,6 @@ func TestCardAt(t *testing.T) {
 		{"next group card", true, 15, 2, true},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := m

@@ -33,7 +33,6 @@ func TestLookup(t *testing.T) {
 		{"nope", "", "unknown"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			c, err := lookup(tc.input)
@@ -67,7 +66,6 @@ func TestMatches(t *testing.T) {
 		{"no match", "frontend", false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, matches(a, tc.query))
@@ -105,7 +103,6 @@ func TestTreeOrder(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, depth := treeOrder(tc.in, func(id string) bool { return !slices.Contains(tc.collapsed, id) })
@@ -192,7 +189,6 @@ func TestRefreshViewOrder(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := model{all: tc.all, favorites: tc.favorites, grouped: tc.grouped, agents: tc.all, expanded: map[string]bool{"%2": true}}
@@ -225,7 +221,6 @@ func TestFamily(t *testing.T) {
 		{"self parent ignored", "%5", []string{"%5"}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := model{all: all}
