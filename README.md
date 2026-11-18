@@ -71,6 +71,9 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `m` | hand the agent and its children to cockpit: each agent pane moves into the `cockpit` session (its whole window if it is alone there, else just the pane, so your other panes stay put) and becomes managed |
 | `z` | pause the agent and its children: each working one is interrupted (Esc) and marked **⏸ paused**. `z` again resumes them with a note that the pause came from cockpit. Useful before closing the laptop; a paused agent stays paused across restore |
 | `Z` | pause every working agent; once nothing is working, resume all paused ones |
+| `space` | expand / collapse the agent's children. A collapsed parent shows how many agents are under it and their statuses (`[3] ◆ 1 ⠋ 2`), so a child that needs you shows without expanding |
+| `h`, `←` | collapse the selected parent, else go to its parent |
+| `E` | expand every parent, or collapse all once everything is expanded |
 | `s` | send a prompt without leaving the list |
 | `p` | answer a permission prompt (shown when the agent needs input): see what it asks, then `y` approve once, `a` approve always (when offered) or `n` deny. Claude and OpenCode only |
 | `r` | label the agent (cockpit only, tmux window name is untouched; empty clears) |
@@ -80,7 +83,7 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `:` | run a command (tab completes, any unique prefix works) |
 | `f` / `F` | toggle favorite (★) / favorites list: `enter` jumps to a running one or resumes it, `d` removes |
 | `R` / `x` | restore / dismiss sessions from last time |
-| `?` | help |
+| `?` | help (`↑`/`↓`, `pgup`/`pgdn` or the mouse wheel scroll, `esc` closes) |
 | `q` | quit and restore all panes |
 
 Commands:
@@ -163,7 +166,7 @@ agent = "claude"   # optional
 prompt = "Update the docs for: {{.Task}}"
 ```
 
-In the TUI, the mode is the first step of the new-session wizard. Any agent can split its work across children through the MCP tools; children appear indented under their parent.
+In the TUI, the mode is the first step of the new-session wizard. Any agent can split its work across children through the MCP tools; children appear in a tree under their parent.
 
 Favoriting or restoring an agent brings back its children too.
 

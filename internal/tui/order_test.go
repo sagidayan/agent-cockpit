@@ -52,7 +52,6 @@ func TestArrange(t *testing.T) {
 		{"closed agents drop out", []string{"%3", "%1", "%2"}, live("%1", "%2"), []string{"%1", "%2"}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, arrange(tc.order, tc.live))
@@ -84,7 +83,6 @@ func TestShift(t *testing.T) {
 		{"not across project groups", inDirs(live("%1", "%2", "%3"), "/a", "/b", "/a"), nil, "", true, "%3", 1, []string{"%1", "%3", "%2"}, false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			m := model{all: tc.all, favorites: tc.favorites, sortBy: tc.sortBy, grouped: tc.grouped, order: arrange(nil, tc.all), expanded: map[string]bool{"%1": true}}
@@ -97,15 +95,16 @@ func TestShift(t *testing.T) {
 	}
 }
 
+func press(m model, keys string) model {
+	for _, k := range keys {
+		next, _ := m.updateList(tea.KeyPressMsg{Code: k, Text: string(k)})
+		m = next.(model)
+	}
+	return m
+}
+
 func TestListJumps(t *testing.T) {
 	t.Parallel()
-	press := func(m model, keys string) model {
-		for _, k := range keys {
-			next, _ := m.updateList(tea.KeyPressMsg{Code: k, Text: string(k)})
-			m = next.(model)
-		}
-		return m
-	}
 	cases := []struct {
 		keys string
 		from int
@@ -116,7 +115,6 @@ func TestListJumps(t *testing.T) {
 		{"gj", 0, 0},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.keys, func(t *testing.T) {
 			t.Parallel()
 			m := model{all: live("%1", "%2", "%3"), expanded: map[string]bool{}}
@@ -125,6 +123,34 @@ func TestListJumps(t *testing.T) {
 			m = press(m, tc.keys)
 			require.Equal(t, tc.want, m.cursor)
 			require.Empty(t, m.chord)
+		})
+	}
+}
+
+func TestTreeKeys(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name         string
+		expanded     map[string]bool
+		selected     string
+		keys         string
+		wantSelected string
+		wantVisible  []string
+	}{
+		{"h collapses an open parent", map[string]bool{"%1": true, "%2": true}, "%2", "h", "%2", []string{"%1", "%2", "%4", "%5"}},
+		{"h on a child goes to its parent", map[string]bool{"%1": true, "%2": true}, "%3", "h", "%2", []string{"%1", "%2", "%3", "%4", "%5"}},
+		{"h twice walks up the tree", map[string]bool{"%1": true}, "%4", "hh", "%1", []string{"%1", "%5"}},
+		{"E expands every parent", map[string]bool{}, "%1", "E", "%1", []string{"%1", "%2", "%3", "%4", "%5"}},
+		{"E collapses when all are open and keeps the root selected", map[string]bool{"%1": true, "%2": true}, "%3", "E", "%1", []string{"%1", "%5"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := model{all: live("%1", "%1>%2", "%2>%3", "%1>%4", "%5"), expanded: tc.expanded}
+			m = m.refreshView().selectID(tc.selected)
+			m = press(m, tc.keys)
+			require.Equal(t, tc.wantVisible, ids(m.agents))
+			require.Equal(t, tc.wantSelected, ids(m.agents)[m.cursor])
 		})
 	}
 }

@@ -40,6 +40,9 @@ func (m model) updateMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	if m.detail.open {
 		return m.wheelDetail(msg), nil
 	}
+	if wheel, ok := msg.(tea.MouseWheelMsg); ok && m.overlay == "help" {
+		return m.scrollHelp(map[tea.MouseButton]int{tea.MouseWheelUp: -wheelStep, tea.MouseWheelDown: wheelStep}[wheel.Button]), nil
+	}
 	switch msg := msg.(type) {
 	case tea.MouseWheelMsg:
 		return m.wheel(msg.Button), nil

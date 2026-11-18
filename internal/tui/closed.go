@@ -72,7 +72,7 @@ func closedName(c state.Closed) string {
 }
 
 func (m model) closedView(height int) string {
-	rows := []string{" " + titleStyle.Render(withIcon(icons.restore, "recently closed")) + mutedStyle.Render("  ⏎ resume · d remove · esc close")}
+	rows := []string{" " + titleStyle.Render(withIcon(icons.restore, "recently closed"))}
 	if len(m.closed) == 0 {
 		rows = append(rows, "", mutedStyle.Render("   Nothing closed yet."))
 	}

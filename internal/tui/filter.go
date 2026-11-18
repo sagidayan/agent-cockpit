@@ -58,7 +58,7 @@ func (m model) refreshView() model {
 	m = m.expandPending()
 	m.agents, m.depth = treeOrder(visible, m.isExpanded)
 	m.cursor = min(m.cursor, max(0, len(m.agents)-1))
-	m = m.selectID(prev.ID)
+	m = m.selectNearest(prev)
 	if m.pending != "" {
 		m, m.pending = m.selectID(m.pending), ""
 	}
@@ -70,6 +70,20 @@ func (m model) selectID(id string) model {
 		if a.ID == id {
 			m.cursor = i
 		}
+	}
+	return m
+}
+
+func (m model) selectNearest(a agents.Live) model {
+	for range len(m.all) + 1 {
+		if slices.ContainsFunc(m.agents, func(b agents.Live) bool { return b.ID == a.ID }) {
+			return m.selectID(a.ID)
+		}
+		i := slices.IndexFunc(m.all, func(b agents.Live) bool { return b.ID == a.Parent })
+		if i < 0 {
+			return m
+		}
+		a = m.all[i]
 	}
 	return m
 }
@@ -101,6 +115,35 @@ func (m model) toggleExpanded() model {
 	}
 	m.expanded[id] = !m.expanded[id]
 	return m.refreshView().selectID(id).showSelected()
+}
+
+func (m model) collapseOrParent() model {
+	a, ok := m.selected()
+	switch {
+	case !ok:
+		return m
+	case m.filter == "" && m.expanded[a.ID] && m.childCount(a) > 0:
+		m.expanded[a.ID] = false
+		return m.refreshView()
+	}
+	return m.selectID(a.Parent).showSelected()
+}
+
+func (m model) toggleAll() model {
+	parents := slices.DeleteFunc(slices.Clone(m.all), func(a agents.Live) bool { return m.childCount(a) == 0 })
+	if len(parents) == 0 {
+		m.notice = "no agents with children"
+		return m
+	}
+	expand := slices.ContainsFunc(parents, func(a agents.Live) bool { return !m.expanded[a.ID] })
+	for _, a := range parents {
+		m.expanded[a.ID] = expand
+	}
+	m.notice = "✓ collapsed all"
+	if expand {
+		m.notice = "✓ expanded all"
+	}
+	return m.refreshView()
 }
 
 func (m model) favoriteRank(a agents.Live) int {

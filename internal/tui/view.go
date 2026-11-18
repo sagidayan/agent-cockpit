@@ -25,6 +25,7 @@ const (
 	cardGap        = 1
 	maxSuggestions = 5
 	minMetaWidth   = 24
+	minNameWidth   = 8
 	tldrLimit      = 90
 )
 
@@ -123,7 +124,7 @@ func (m model) listHeight() int {
 func (m model) cards() []string {
 	cards := make([]string, len(m.agents))
 	for i, a := range m.agents {
-		cards[i] = m.card(a, i == m.cursor)
+		cards[i] = m.card(i)
 		if m.startsGroup(i) {
 			cards[i] = m.groupHeader(a) + "\n" + cards[i]
 		}
@@ -210,8 +211,15 @@ func spread(left, right string, width int) string {
 }
 
 func (m model) statusChips(labels bool) string {
+	if chips := m.chips(m.all, labels); chips != "" {
+		return chips
+	}
+	return mutedStyle.Render("no agents yet")
+}
+
+func (m model) chips(list []agents.Live, labels bool) string {
 	counts := map[state.Status]int{}
-	for _, a := range m.all {
+	for _, a := range list {
 		counts[a.Status]++
 	}
 	var parts []string
@@ -224,9 +232,6 @@ func (m model) statusChips(labels bool) string {
 			chip += " " + badgeFor(s).label
 		}
 		parts = append(parts, m.statusStyle(s).Render(chip))
-	}
-	if len(parts) == 0 {
-		return mutedStyle.Render("no agents yet")
 	}
 	return strings.Join(parts, "  ")
 }
@@ -266,7 +271,7 @@ func (m model) listView(height int) string {
 	case m.question != nil:
 		return box.Render(m.questionView())
 	case m.overlay == "help":
-		return box.Render(m.helpView())
+		return box.Render(m.helpView(height))
 	case m.overlay == "projects":
 		return box.Render(m.projectsView())
 	case m.overlay == "favorites":
@@ -276,12 +281,18 @@ func (m model) listView(height int) string {
 	case m.detail.open:
 		return box.Render(m.detailView())
 	case len(m.agents) == 0 && m.filter != "":
-		return box.Render(mutedStyle.Render(" No agents match \"" + m.filter + "\"."))
+		return box.Render(mutedStyle.Render(" No agents match \"" + m.filter + "\".\n Press esc to clear the filter."))
 	case len(m.agents) == 0:
 		return box.Render(mutedStyle.Render(" No agents running.\n Press n to start one."))
 	}
 	cards := m.cards()
-	lines := strings.Split(strings.Join(cards, strings.Repeat("\n", cardGap+1)), "\n")
+	var lines []string
+	for i, c := range cards {
+		if i > 0 {
+			lines = append(lines, slices.Repeat([]string{m.gapGuide(i)}, cardGap)...)
+		}
+		lines = append(lines, strings.Split(c, "\n")...)
+	}
 	start := m.scrollStart(cards, height)
 	lines = lines[start:min(len(lines), start+max(height, 0))]
 	return lipgloss.NewStyle().Height(height).Render(strings.Join(lines, "\n"))
@@ -295,9 +306,9 @@ func (m model) scrollStart(cards []string, height int) int {
 	return max(0, end-cardGap-height)
 }
 
-func (m model) card(a agents.Live, selected bool) string {
-	depth := m.depth[a.ID]
-	inner := max(m.width-4-2*depth, 10)
+func (m model) card(i int) string {
+	a, selected := m.agents[i], i == m.cursor
+	inner := max(m.width-4-2*m.depth[a.ID], 10)
 	lines := append(m.cardHead(a, inner),
 		ansi.Truncate(keyStyle.Render("❯")+" "+orPlaceholder(tldr(a.Prompt), "no prompt yet"), inner, "…"),
 		ansi.Truncate(m.reply(a), inner, "…"),
@@ -312,40 +323,92 @@ func (m model) card(a agents.Live, selected bool) string {
 	case selected:
 		bar = barStyle.Render("┃")
 	}
-	indent := strings.Repeat("  ", depth)
-	for i, l := range lines {
-		lines[i] = " " + indent + bar + " " + l
+	head, body := m.guides(i)
+	for j, l := range lines {
+		lines[j] = " " + subtleStyle.Render(cmp.Or(head, body)) + bar + " " + l
+		head = ""
 		if selected {
-			lines[i] = m.highlight(lines[i])
+			lines[j] = m.highlight(lines[j])
 		}
 	}
 	return strings.Join(lines, "\n")
 }
 
+func (m model) guides(i int) (head, body string) {
+	if m.depth[m.agents[i].ID] == 0 {
+		return "", ""
+	}
+	if m.hasNextSibling(i) {
+		return m.ancestry(i) + "├─", m.ancestry(i) + "│ "
+	}
+	return m.ancestry(i) + "└─", m.ancestry(i) + "  "
+}
+
+func (m model) gapGuide(i int) string {
+	if m.depth[m.agents[i].ID] == 0 {
+		return ""
+	}
+	return " " + subtleStyle.Render(m.ancestry(i)+"│")
+}
+
+func (m model) ancestry(i int) string {
+	prefix := ""
+	want := m.depth[m.agents[i].ID] - 1
+	for j := i - 1; j >= 0 && want > 0; j-- {
+		if m.depth[m.agents[j].ID] != want {
+			continue
+		}
+		branch := "  "
+		if m.hasNextSibling(j) {
+			branch = "│ "
+		}
+		prefix, want = branch+prefix, want-1
+	}
+	return prefix
+}
+
+func (m model) hasNextSibling(i int) bool {
+	d := m.depth[m.agents[i].ID]
+	for _, b := range m.agents[i+1:] {
+		if bd := m.depth[b.ID]; bd <= d {
+			return bd == d
+		}
+	}
+	return false
+}
+
 func (m model) cardHead(a agents.Live, inner int) []string {
 	status := m.statusBadge(a.Status)
-	label := withIcon(icons.kinds[a.Kind], name(a))
-	if m.depth[a.ID] > 0 {
-		label = "↳ " + label
-	}
-	if n := m.childCount(a); n > 0 {
-		label = m.chevron(a) + " " + label + " " + keyStyle.Render(fmt.Sprintf("[%d]", n))
+	var chevron, suffix string
+	if m.childCount(a) > 0 {
+		chevron, suffix = m.chevron(a)+" ", " "+m.rollup(a)
 	}
 	if m.isFavorite(a) {
-		label += " " + favoriteStyle.Render(icons.star)
+		suffix += " " + favoriteStyle.Render(icons.star)
 	}
 	if a.MCPDown {
-		label += " " + errStyle.Render("⚠ MCP down")
+		suffix += " " + errStyle.Render("⚠ MCP down")
 	}
 	if a.OverBudget && m.depth[a.ID] == 0 {
-		label += " " + errStyle.Render("⚠ over budget")
+		suffix += " " + errStyle.Render("⚠ over budget")
 	}
-	title := nameStyle.Render(ansi.Truncate(label, inner-lipgloss.Width(status)-1, "…"))
+	room := inner - lipgloss.Width(status) - 1
+	label := ansi.Truncate(withIcon(icons.kinds[a.Kind], name(a)), max(room-lipgloss.Width(chevron+suffix), minNameWidth), "…")
+	title := ansi.Truncate(nameStyle.Render(chevron+label)+suffix, room, "…")
 	gap := max(1, inner-lipgloss.Width(title)-lipgloss.Width(status))
 	return []string{
 		title + strings.Repeat(" ", gap) + status,
 		metaLine(m.meta(a), statsLine(a, agents.TreeCost(m.all, a)), inner),
 	}
+}
+
+func (m model) rollup(a agents.Live) string {
+	if m.isExpanded(a.ID) {
+		return keyStyle.Render(fmt.Sprintf("[%d]", m.childCount(a)))
+	}
+	below := agents.Subtree(m.all, a)
+	below = below[:len(below)-1]
+	return strings.TrimSpace(keyStyle.Render(fmt.Sprintf("[%d]", len(below))) + " " + m.chips(below, false))
 }
 
 func (m model) chevron(a agents.Live) string {
@@ -500,11 +563,17 @@ func (m model) projectsView() string {
 	return strings.Join(rows, "\n")
 }
 
-func (m model) helpView() string {
+func (m model) helpView(height int) string {
+	rows := m.helpRows()
+	top := min(m.helpTop, max(0, len(rows)-height))
+	return strings.Join(rows[top:min(len(rows), top+max(height, 0))], "\n")
+}
+
+func (m model) helpRows() []string {
 	keys := [][2]string{
 		{"j/k ↑↓", "move"}, {"gg G", "first / last (also home/end)"}, {"J/K", "move the agent down / up the list (also pgdn/pgup)"}, {"1-9", "jump to agent"},
 		{"⏎ → l", "interact in viewer"}, {"i", "details: full prompt, reply, conversation (esc closes)"},
-		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "hand the agent to cockpit (moves it into the cockpit session)"}, {"z", "pause / resume the agent and its children"}, {"Z", "pause everything working / resume all paused"}, {"space", "expand / collapse children"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
+		{"gt", "go to agent's window"}, {"d", "review the agent's diff in your editor"}, {"m", "hand the agent to cockpit (moves it into the cockpit session)"}, {"z", "pause / resume the agent and its children"}, {"Z", "pause everything working / resume all paused"}, {"space", "expand / collapse children"}, {"h ←", "collapse, or go to the parent"}, {"E", "expand / collapse all"}, {"s", "send a prompt"}, {"p", "answer a permission prompt"}, {"r", "label the agent"}, {"n", "new session"},
 		{"f", "toggle favorite"}, {"F", "favorites (resume old ones)"},
 		{"/", "filter"}, {"esc", "clear filter"}, {":", "command"}, {"R", "restore last sessions"},
 		{"x", "dismiss restore"}, {"?", "this help"}, {"q", "quit"},
@@ -521,7 +590,7 @@ func (m model) helpView() string {
 	for i, r := range rows {
 		rows[i] = ansi.Truncate(r, m.width, "…")
 	}
-	return strings.Join(rows, "\n")
+	return rows
 }
 
 func (m model) composerView() string {
@@ -761,6 +830,13 @@ func totalCost(live []agents.Live) float64 {
 	return total
 }
 
+var overlayKeys = map[string][][2]string{
+	"help":      {{"↑↓", "scroll"}, {"pgup/dn", "page"}, {"esc", "close"}},
+	"projects":  {{"esc", "close"}},
+	"favorites": {{"↑↓", "move"}, {"⏎", "open / resume"}, {"d", "remove"}, {"esc", "close"}},
+	"closed":    {{"↑↓", "move"}, {"⏎", "resume"}, {"d", "remove"}, {"esc", "close"}},
+}
+
 const reconnectHint = "MCP down: run :restart for a fresh server"
 
 func (m model) help() string {
@@ -778,6 +854,8 @@ func (m model) help() string {
 		keys = [][2]string{{"⏎", "send"}, {"alt+⏎", "newline"}, {"esc", "cancel"}}
 	case m.spawning:
 		keys = stepKeys[m.form.step]
+	case m.overlay != "":
+		keys = overlayKeys[m.overlay]
 	case m.detail.open:
 		keys = [][2]string{{"↑↓", "scroll"}, {"pgup/dn", "page"}, {"home/end", "top / bottom"}, {"⏎/→", "interact"}, {"s", "send"}, {"esc", "close"}}
 	}

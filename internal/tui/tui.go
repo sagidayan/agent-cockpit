@@ -73,6 +73,7 @@ type model struct {
 	clickedAt      time.Time
 	favorites      []snapshot.Entry
 	favCursor      int
+	helpTop        int
 	closed         []state.Closed
 	closedCursor   int
 	grouped        bool
@@ -287,6 +288,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.overlay == "closed" {
 			return m.updateClosed(msg)
 		}
+		if m.overlay == "help" {
+			return m.updateHelp(msg)
+		}
 		if m.overlay != "" {
 			m.overlay = ""
 			return m, nil
@@ -358,7 +362,7 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			return m.openPrompt('r')
 		}
 	case "?":
-		m.overlay = "help"
+		return m.openHelp(), nil
 	case "R":
 		return m.restoreAll()
 	case "f":
@@ -386,6 +390,10 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.pauseAll()
 	case "space":
 		return m.toggleExpanded(), nil
+	case "h", "left":
+		return m.collapseOrParent(), nil
+	case "E":
+		return m.toggleAll(), nil
 	case "d":
 		return cmdDiff(m, "")
 	case "s":
@@ -555,5 +563,33 @@ func (m model) closeInput() model {
 	m.sending = false
 	m.input.Reset()
 	m.input.Blur()
+	return m
+}
+
+func (m model) openHelp() model {
+	m.overlay, m.helpTop = "help", 0
+	return m
+}
+
+func (m model) updateHelp(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	page := max(m.listHeight()-1, 1)
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "j", "down":
+		return m.scrollHelp(1), nil
+	case "k", "up":
+		return m.scrollHelp(-1), nil
+	case "pgdown":
+		return m.scrollHelp(page), nil
+	case "pgup":
+		return m.scrollHelp(-page), nil
+	}
+	m.overlay = ""
+	return m, nil
+}
+
+func (m model) scrollHelp(n int) model {
+	m.helpTop = min(max(0, m.helpTop+n), max(0, len(m.helpRows())-m.listHeight()))
 	return m
 }

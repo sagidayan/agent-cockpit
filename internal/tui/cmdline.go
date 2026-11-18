@@ -305,8 +305,7 @@ func cmdFavorites(m model, _ string) (model, tea.Cmd) {
 }
 
 func cmdHelp(m model, _ string) (model, tea.Cmd) {
-	m.overlay = "help"
-	return m, nil
+	return m.openHelp(), nil
 }
 
 func cmdProject(m model, args string) (model, tea.Cmd) {

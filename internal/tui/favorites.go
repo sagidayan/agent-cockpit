@@ -81,7 +81,7 @@ func (m model) openFavorite(e snapshot.Entry) (tea.Model, tea.Cmd) {
 }
 
 func (m model) favoritesView() string {
-	rows := []string{" " + titleStyle.Render(withIcon(icons.star, "favorites")) + mutedStyle.Render("  ⏎ open/resume · d remove · esc close")}
+	rows := []string{" " + titleStyle.Render(withIcon(icons.star, "favorites"))}
 	if len(m.favorites) == 0 {
 		rows = append(rows, "", mutedStyle.Render("   No favorites yet. Press f on an agent."))
 	}
