@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Restore brings back every agent cockpit did not close itself, also after a shutdown or crash: the snapshot is kept current while the dashboard runs instead of only on a clean quit. Restore keeps going past failures and says which agents did not come back.
+
 ## v0.0.6
 
 - Pause and resume: `z` pauses the selected agent and its children (interrupts the working ones and marks them **⏸ paused**), `z` again resumes them with a note that cockpit paused them. `Z` pauses everything working, or resumes all paused. A cockpit pause is kept apart from an interrupt you make inside the agent, and survives restore.
