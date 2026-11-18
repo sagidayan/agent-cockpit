@@ -92,7 +92,7 @@ func TestParseErrors(t *testing.T) {
 
 func TestMerge(t *testing.T) {
 	t.Parallel()
-	prev := state.Agent{Kind: "claude", SessionID: "s1", Prompt: "old", Transcript: "/t.jsonl", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true}
+	prev := state.Agent{Kind: "claude", SessionID: "s1", Prompt: "old", Transcript: "/t.jsonl", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true, Restarting: true}
 	resumed := prev
 	resumed.Status, resumed.Prompt, resumed.Paused = state.Working, "go on", false
 	stillPaused := prev
@@ -103,7 +103,7 @@ func TestMerge(t *testing.T) {
 		want state.Agent
 	}{
 		{"same session keeps everything", state.Agent{Kind: "claude", SessionID: "s1"}, prev},
-		{"new session keeps touched, cost and the pause only", state.Agent{Kind: "claude", SessionID: "s2"}, state.Agent{Kind: "claude", SessionID: "s2", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true}},
+		{"new session keeps touched, cost and the pause only", state.Agent{Kind: "claude", SessionID: "s2"}, state.Agent{Kind: "claude", SessionID: "s2", Touched: []string{"/r"}, ClosedCost: 1.5, BudgetWarned: true, Paused: true, Restarting: true}},
 		{"a new prompt clears a cockpit pause", state.Agent{Kind: "claude", SessionID: "s1", Status: state.Working, Prompt: "go on"}, resumed},
 		{"a tool event keeps the pause", state.Agent{Kind: "claude", SessionID: "s1", Status: state.Working}, stillPaused},
 		{"other agent kind starts fresh", state.Agent{Kind: "codex"}, state.Agent{Kind: "codex"}},
@@ -114,4 +114,20 @@ func TestMerge(t *testing.T) {
 			require.Equal(t, tc.want, merge(prev, tc.next))
 		})
 	}
+}
+
+func TestEndSessionSurvivesARestart(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("TMUX", "/tmp/no-such-cockpit-test-sock,1,0")
+	require.NoError(t, state.Save(state.Agent{Pane: "%1", Kind: "claude", SessionID: "s1", Restarting: true}))
+
+	require.NoError(t, endSession("%1"))
+	got, err := state.Load("%1")
+	require.NoError(t, err)
+	require.False(t, got.Restarting)
+	require.Equal(t, "s1", got.SessionID)
+
+	require.NoError(t, endSession("%1"))
+	_, err = state.Load("%1")
+	require.Error(t, err)
 }

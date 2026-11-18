@@ -315,14 +315,24 @@ func Restart(a agents.Live) error {
 	if command == "" {
 		return fmt.Errorf("unknown agent %q", a.Kind)
 	}
-	if err := tmux.Respawn(a.ID, a.Pane.Cwd, command); err != nil {
+	if err := markRestarting(a, true); err != nil {
 		return err
 	}
+	if err := tmux.Respawn(a.ID, a.Pane.Cwd, command); err != nil {
+		return errors.Join(err, markRestarting(a, false))
+	}
+	return nil
+}
+
+func markRestarting(a agents.Live, on bool) error {
 	_, _, _, err := state.Update(a.ID, func(p state.Agent) (state.Agent, bool) {
 		if p.Pane == "" {
 			p = a.Agent
 		}
-		p.Status, p.Message, p.Prompt = state.Idle, "", ""
+		p.Restarting = on
+		if on {
+			p.Status, p.Message, p.Prompt = state.Idle, "", ""
+		}
 		return p, true
 	})
 	return err

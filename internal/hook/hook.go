@@ -74,7 +74,7 @@ func record(kind, pane string, ev event) error {
 		return state.SaveStats(pane, *ev.stats)
 	}
 	if ev.remove {
-		return ignoreMissing(state.Remove(pane))
+		return ignoreMissing(endSession(pane))
 	}
 	if ev.status == "" {
 		return nil
@@ -89,9 +89,23 @@ func update(a state.Agent) error {
 	return errors.Join(err, control.Report(prev, cur))
 }
 
+func endSession(pane string) error {
+	_, _, kept, err := state.Update(pane, func(p state.Agent) (state.Agent, bool) {
+		if !p.Restarting {
+			return p, false
+		}
+		p.Restarting = false
+		return p, true
+	})
+	if err != nil || kept {
+		return err
+	}
+	return state.Remove(pane)
+}
+
 func merge(prev, a state.Agent) state.Agent {
 	if prev.Kind == a.Kind {
-		a.Touched, a.ClosedCost, a.BudgetWarned = prev.Touched, prev.ClosedCost, prev.BudgetWarned
+		a.Touched, a.ClosedCost, a.BudgetWarned, a.Restarting = prev.Touched, prev.ClosedCost, prev.BudgetWarned, prev.Restarting
 		a.Paused = prev.Paused && !(a.Status == state.Working && a.Prompt != "")
 	}
 	if prev.Kind == a.Kind && (a.SessionID == "" || a.SessionID == prev.SessionID) {

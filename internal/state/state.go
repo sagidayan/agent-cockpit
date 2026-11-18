@@ -35,6 +35,7 @@ type Agent struct {
 	ClosedCost   float64   `json:"closed_cost_usd,omitempty"`
 	BudgetWarned bool      `json:"budget_warned,omitempty"`
 	Paused       bool      `json:"paused,omitempty"`
+	Restarting   bool      `json:"restarting,omitempty"`
 	Server       string    `json:"server,omitempty"`
 	SessionID    string    `json:"session_id,omitempty"`
 	UpdatedAt    time.Time `json:"updated_at"`
