@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- End-to-end tests run cockpit against a throwaway tmux server (`make e2e`), locally and in CI on Linux and macOS.
 - The agent list draws a real tree (├─ └─ │), and a collapsed parent shows how many agents are under it and what state they are in, so a grandchild that needs you is visible without expanding.
 - `h` / `←` collapses a parent or jumps to it, `E` expands or collapses everything, `?` help scrolls, overlays show their keys in the footer, and long names no longer push flags off narrow cards.
 - Restore brings back every agent cockpit did not close itself, also after a shutdown or crash: the snapshot is kept current while the dashboard runs instead of only on a clean quit. Restore keeps going past failures and says which agents did not come back.
