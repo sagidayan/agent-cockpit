@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Claude and OpenCode agents can no longer kill parts of your tmux server from their shell (`kill-server`, `kill-session`, `kill-window`, `kill-pane`, `respawn-*`, `unlink-window` without `-L`/`-S`). Run `cockpit init` to install the new hook.
 - End-to-end tests run cockpit against a throwaway tmux server (`make e2e`), locally and in CI on Linux and macOS.
 - The agent list draws a real tree (├─ └─ │), and a collapsed parent shows how many agents are under it and what state they are in, so a grandchild that needs you is visible without expanding.
 - `h` / `←` collapses a parent or jumps to it, `E` expands or collapses everything, `?` help scrolls, overlays show their keys in the footer, and long names no longer push flags off narrow cards.
