@@ -25,7 +25,7 @@ make init   # install + cockpit init
 
 When upgrading on macOS, replace the binary (`mv`) rather than `cp` over it, or the kernel kills it for an invalid code signature. `cockpit version` prints the installed version.
 
-Other targets: `make build`, `make test`, `make lint`, `make clean`.
+Other targets: `make build`, `make test`, `make e2e`, `make lint`, `make clean`.
 
 Runs on macOS and Linux (Windows via WSL). Requires tmux.
 
@@ -258,6 +258,10 @@ tree_usd = 0   # warn when an agent tree's total cost passes this (USD); 0 = off
 ```
 
 Notifications name the agent by its label, project, window or folder (e.g. "✅ billing bug finished", "🙋 payments needs you") and show its last message. "Needs you" notifications are urgent: with a sound on macOS, and on Linux they stay until dismissed. Desktop notifications use `osascript` (or `terminal-notifier` if installed) on macOS and D-Bus / `notify-send` on Linux. They're skipped while you're looking at the agent's pane. When claude ends a turn without running its hooks in the agent's pane, cockpit picks the end up from the session transcript and notifies once. When a tree passes `[budget] tree_usd`, its root card is flagged "⚠ over budget" and you get one notification (again if it later passes a raised budget); agents keep running. The check runs while the dashboard is open.
+
+## Development
+
+`make test` runs the unit tests. `make e2e` runs end-to-end tests that drive the real binary and dashboard against a throwaway tmux server per test (`tmux -L <random>`, temp state and config dirs, a fake `claude` that just sleeps). They never touch your own tmux server and are skipped when tmux is not installed. CI runs both on Linux and macOS.
 
 ## Releasing
 
