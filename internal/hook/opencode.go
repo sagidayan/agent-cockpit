@@ -18,6 +18,9 @@ func parseOpencode(args []string, _ io.Reader) (event, error) {
 		ev.session = args[1]
 		return ev, err
 	}
+	if len(args) == 2 && args[0] == "guard" {
+		return event{deny: tmuxGuard(args[1])}, nil
+	}
 	if len(args) == 2 && args[0] == "stats" {
 		return opencodeStats(args[1])
 	}

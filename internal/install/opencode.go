@@ -9,9 +9,15 @@ import (
 )
 
 const opencodePlugin = `import { execFile } from "node:child_process"
+import { promisify } from "node:util"
 
 const cockpit = %q
 const hook = (...args) => execFile(cockpit, ["hook", "opencode", ...args], () => {})
+const guard = async ({ tool, input }) => {
+  if (tool !== "shell" && tool !== "bash") return
+  const { stdout } = await promisify(execFile)(cockpit, ["hook", "opencode", "guard", String(input?.command ?? "")]).catch(() => ({}))
+  if (stdout) throw new Error(JSON.parse(stdout).hookSpecificOutput.permissionDecisionReason)
+}
 const statuses = {
   "session.execution.started": "working",
   "session.execution.succeeded": "done",
@@ -22,6 +28,7 @@ const statuses = {
 export default {
   id: "agent-cockpit",
   setup: async (ctx) => {
+    await ctx.tool.hook("execute.before", guard)
     if (process.argv.includes("--service")) return
     const getSession = (sessionID) => ctx.session.get({ sessionID }).catch(() => ({}))
     const isChild = async (sessionID) => Boolean((await getSession(sessionID)).parentID)

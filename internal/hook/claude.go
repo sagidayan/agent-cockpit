@@ -18,7 +18,11 @@ type claudeInput struct {
 	Message              string `json:"message"`
 	LastAssistantMessage string `json:"last_assistant_message"`
 	TranscriptPath       string `json:"transcript_path"`
-	BackgroundTasks      []struct {
+	ToolName             string `json:"tool_name"`
+	ToolInput            struct {
+		Command string `json:"command"`
+	} `json:"tool_input"`
+	BackgroundTasks []struct {
 		Description string `json:"description"`
 	} `json:"background_tasks"`
 	SessionCrons []struct {
@@ -46,6 +50,10 @@ func parseClaude(_ []string, stdin io.Reader) (event, error) {
 		ev.status, ev.message = stopStatus(in)
 	case "SessionEnd":
 		ev.remove = true
+	case "PreToolUse":
+		if in.ToolName == "Bash" {
+			ev.deny = tmuxGuard(in.ToolInput.Command)
+		}
 	}
 	return ev, nil
 }

@@ -23,7 +23,6 @@ func TestSetCodexNotify(t *testing.T) {
 		{"ignores table keys", "[tui]\nnotify = true\n", line + "\n[tui]\nnotify = true\n", false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := setCodexNotify(tc.config, line)
@@ -60,6 +59,7 @@ func TestMergeClaudeHooks(t *testing.T) {
 	require.Len(t, stop, 2)
 	require.False(t, isCockpitGroup(stop[0]))
 	require.Equal(t, claudeGroup("/new path/cockpit", ""), stop[1])
+	require.Equal(t, []any{claudeGroup("/new path/cockpit", "Bash")}, hooks["PreToolUse"])
 	require.Equal(t, "'/new path/cockpit' hook claude", stop[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["command"])
 }
 
@@ -80,7 +80,6 @@ func TestMergeStatusLine(t *testing.T) {
 			map[string]any{"type": "command", "command": own, "padding": float64(2)}, "/old/cockpit statusline", false},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			settings := map[string]any{}

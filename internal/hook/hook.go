@@ -2,6 +2,7 @@ package hook
 
 import (
 	"cmp"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ type event struct {
 	session    string
 	prompt     string
 	transcript string
+	deny       string
 }
 
 type parser func(args []string, stdin io.Reader) (event, error)
@@ -33,25 +35,41 @@ var parsers = map[string]parser{
 }
 
 func Run(kind string, args []string) error {
+	ev, err := parse(kind, args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "cockpit hook:", err)
+		return nil
+	}
+	if ev.deny != "" {
+		return writeDeny(ev.deny)
+	}
 	pane := os.Getenv("TMUX_PANE")
 	if pane == "" {
 		return nil
 	}
-	if err := record(kind, pane, args); err != nil {
+	if err := record(kind, pane, ev); err != nil {
 		fmt.Fprintln(os.Stderr, "cockpit hook:", err)
 	}
 	return nil
 }
 
-func record(kind, pane string, args []string) error {
-	parse, ok := parsers[kind]
+func parse(kind string, args []string) (event, error) {
+	p, ok := parsers[kind]
 	if !ok {
-		return fmt.Errorf("unknown agent %q", kind)
+		return event{}, fmt.Errorf("unknown agent %q", kind)
 	}
-	ev, err := parse(args, os.Stdin)
-	if err != nil {
-		return err
-	}
+	return p(args, os.Stdin)
+}
+
+func writeDeny(reason string) error {
+	return json.NewEncoder(os.Stdout).Encode(map[string]any{"hookSpecificOutput": map[string]any{
+		"hookEventName":            "PreToolUse",
+		"permissionDecision":       "deny",
+		"permissionDecisionReason": reason,
+	}})
+}
+
+func record(kind, pane string, ev event) error {
 	if ev.stats != nil {
 		return state.SaveStats(pane, *ev.stats)
 	}

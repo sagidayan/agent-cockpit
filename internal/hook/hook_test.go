@@ -1,6 +1,7 @@
 package hook
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,16 +42,20 @@ func TestParse(t *testing.T) {
 		{"claude stop with a scheduled wakeup", "claude", nil, `{"hook_event_name":"Stop","cwd":"/p","last_assistant_message":"waiting","session_crons":[{"id":"c1","schedule":"*/5 * * * *","recurring":true}]}`, event{status: state.Background, message: "scheduled to wake (*/5 * * * *) · waiting", cwd: "/p"}},
 		{"claude stop from transcript", "claude", nil, `{"hook_event_name":"Stop","cwd":"/p","transcript_path":"` + transcriptPath + `"}`, event{status: state.Done, message: "final answer", cwd: "/p", transcript: transcriptPath}},
 		{"claude session end", "claude", nil, `{"hook_event_name":"SessionEnd","cwd":"/p","reason":"other"}`, event{remove: true, cwd: "/p"}},
-		{"claude unknown event", "claude", nil, `{"hook_event_name":"PreToolUse","cwd":"/p"}`, event{cwd: "/p"}},
+		{"claude unknown event", "claude", nil, `{"hook_event_name":"PostToolUse","cwd":"/p"}`, event{cwd: "/p"}},
+		{"claude safe bash", "claude", nil, `{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"tmux -L t kill-server"}}`, event{cwd: "/p"}},
+		{"claude tmux kill-server", "claude", nil, `{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Bash","tool_input":{"command":"tmux kill-server"}}`, event{cwd: "/p", deny: fmt.Sprintf(tmuxDenyReason, "kill-server")}},
+		{"claude other tool", "claude", nil, `{"hook_event_name":"PreToolUse","cwd":"/p","tool_name":"Write","tool_input":{"command":"tmux kill-server"}}`, event{cwd: "/p"}},
 		{"codex turn complete", "codex", []string{`{"type":"agent-turn-complete","thread-id":"t","turn-id":"1","cwd":"/c","input-messages":["x"],"last-assistant-message":"Rename complete"}`}, "", event{status: state.Done, message: "Rename complete", cwd: "/c", session: "t", prompt: "x"}},
 		{"codex other type", "codex", []string{`{"type":"something-else"}`}, "", event{}},
 		{"opencode working", "opencode", []string{"working"}, "", event{status: state.Working}},
 		{"opencode working with session", "opencode", []string{"session", "ses_1", "working"}, "", event{status: state.Working, session: "ses_1"}},
 		{"opencode needs input", "opencode", []string{"needs_input", "bash", "rm -rf x"}, "", event{status: state.NeedsInput, message: "bash rm -rf x"}},
+		{"opencode guard allows", "opencode", []string{"guard", "tmux -L t kill-server"}, "", event{}},
+		{"opencode guard blocks", "opencode", []string{"guard", "tmux kill-server"}, "", event{deny: fmt.Sprintf(tmuxDenyReason, "kill-server")}},
 		{"opencode stats", "opencode", []string{"stats", `{"model":"Big Pickle","context_used":7479,"context_max":200000,"cost_usd":0.5}`}, "", event{stats: &state.Stats{Model: "Big Pickle", ContextUsed: 7479, ContextMax: 200000, CostUSD: 0.5}}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := parsers[tc.kind](tc.args, strings.NewReader(tc.stdin))
@@ -76,7 +81,6 @@ func TestParseErrors(t *testing.T) {
 		{"opencode bad stats", "opencode", []string{"stats", "nope"}, ""},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			if _, err := parsers[tc.kind](tc.args, strings.NewReader(tc.stdin)); err == nil {
@@ -105,7 +109,6 @@ func TestMerge(t *testing.T) {
 		{"other agent kind starts fresh", state.Agent{Kind: "codex"}, state.Agent{Kind: "codex"}},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, merge(prev, tc.next))
