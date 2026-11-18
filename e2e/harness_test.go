@@ -177,7 +177,7 @@ func (e *env) window(session string, command ...string) string {
 
 func (e *env) agent(session string) string {
 	e.t.Helper()
-	pane := e.window(session, filepath.Join(bin, "claude"))
+	pane := e.window(session, "exec "+filepath.Join(bin, "claude"))
 	e.eventually(func() bool { return e.format(pane, "#{pane_current_command}") == "claude" })
 	return pane
 }
@@ -187,7 +187,7 @@ func (e *env) dashboard() string {
 	return e.window("work", "-e", "HOME="+e.home,
 		"-e", "XDG_STATE_HOME="+filepath.Join(e.home, ".local", "state"),
 		"-e", "XDG_CONFIG_HOME="+filepath.Join(e.home, ".config"),
-		filepath.Join(bin, "cockpit"))
+		"exec "+filepath.Join(bin, "cockpit"))
 }
 
 func (e *env) keys(pane string, keys ...string) {

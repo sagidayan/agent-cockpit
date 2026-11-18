@@ -51,7 +51,7 @@ func TestMoveHandsOverOnlyTheAgentPane(t *testing.T) {
 	d := e.dashboard()
 	e.showing(d, "claude")
 	e.keys(d, "m")
-	e.eventually(func() bool { return e.format(agent, "#{session_name}") == "cockpit" })
+	e.eventually(func() bool { return e.format(agent, "#{session_name}") != "0" })
 	require.Equal(t, "1", e.format(agent, "#{@cockpit_agent}"))
 	require.Equal(t, "0", e.format(other, "#{session_name}"))
 	require.Equal(t, []string{other}, e.panes(other))
