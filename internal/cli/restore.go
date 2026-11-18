@@ -26,26 +26,16 @@ func restore(args []string) error {
 		fmt.Fprintln(os.Stderr, "nothing to restore")
 		return nil
 	}
-	for _, e := range missing {
-		if _, err := os.Stat(e.Dir); err != nil {
-			fmt.Fprintln(os.Stderr, "skipping:", err)
-			continue
-		}
-		if err := resume(e, live); err != nil {
-			return err
-		}
+	if n, err := resume(missing); err != nil {
+		return fmt.Errorf("restored %d of %d:\n%w", n, len(missing), err)
 	}
 	return nil
 }
 
-func resume(e snapshot.Entry, live []agents.Live) error {
-	session, err := control.Session()
-	if err != nil {
-		return err
+func resume(entries []snapshot.Entry) (int, error) {
+	panes, err := control.Restore(entries)
+	for _, p := range panes {
+		fmt.Println(p)
 	}
-	pane, err := control.Resume(session, e, "", live)
-	if pane != "" {
-		fmt.Println(pane)
-	}
-	return err
+	return len(panes), err
 }

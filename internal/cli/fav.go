@@ -101,7 +101,8 @@ func resumeFav(key string) error {
 	if favorites.Running(e, live) {
 		return fmt.Errorf("%s is already running", entryName(e))
 	}
-	return resume(e, live)
+	_, err = resume([]snapshot.Entry{e})
+	return err
 }
 
 func removeFav(key string) error {

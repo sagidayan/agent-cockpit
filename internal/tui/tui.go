@@ -102,11 +102,8 @@ func Run() error {
 		return err
 	}
 	v := newViewer()
-	final, err := tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder(), grouped: state.LoadGrouped()}).Run()
+	_, err = tea.NewProgram(model{view: v, input: newComposer(), line: newPrompt(), changed: map[string]time.Time{}, expanded: map[string]bool{}, saved: saved, order: state.LoadOrder(), grouped: state.LoadGrouped()}).Run()
 	v.close()
-	if m, ok := final.(model); ok && err == nil {
-		return saveSnapshot(m)
-	}
 	return err
 }
 
@@ -139,7 +136,7 @@ func tick() tea.Cmd {
 }
 
 func load() tea.Msg {
-	a, err := agents.List()
+	a, err := snapshot.Sync()
 	if err != nil {
 		return agentsMsg{err: err}
 	}
@@ -369,7 +366,7 @@ func (m model) updateList(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "F":
 		return m.openFavorites(), nil
 	case "x":
-		m.restorable = nil
+		return m.dismissRestore(), nil
 	case "esc":
 		m.filter = ""
 		return m.refreshView(), nil

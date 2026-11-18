@@ -195,10 +195,14 @@ func Update(pane string, change func(prev Agent) (Agent, bool)) (prev, cur Agent
 }
 
 func lock() (func(), error) {
+	return Lock(".lock")
+}
+
+func Lock(name string) (func(), error) {
 	if err := os.MkdirAll(Dir(), 0o755); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(filepath.Join(Dir(), ".lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	f, err := os.OpenFile(filepath.Join(Dir(), name), os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		return nil, err
 	}

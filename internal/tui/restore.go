@@ -3,7 +3,6 @@ package tui
 import (
 	"errors"
 	"fmt"
-	"os"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -19,25 +18,8 @@ type restoredMsg struct {
 
 func restore(entries []snapshot.Entry) tea.Cmd {
 	return func() tea.Msg {
-		session, err := control.Session()
-		if err != nil {
-			return restoredMsg{err: err}
-		}
-		live, err := agents.List()
-		if err != nil {
-			return restoredMsg{err: err}
-		}
-		n := 0
-		for _, e := range entries {
-			if _, err := os.Stat(e.Dir); err != nil {
-				continue
-			}
-			if _, err := control.Resume(session, e, "", live); err != nil {
-				return restoredMsg{n, err}
-			}
-			n++
-		}
-		return restoredMsg{n: n}
+		panes, err := control.Restore(entries)
+		return restoredMsg{len(panes), err}
 	}
 }
 
@@ -63,12 +45,10 @@ func (m model) checkRestore(live []agents.Live) model {
 	return m
 }
 
-func saveSnapshot(m model) error {
-	live, err := agents.List()
-	if err != nil {
-		return err
-	}
-	return snapshot.Save(append(snapshot.FromLive(live), m.restorable...))
+func (m model) dismissRestore() model {
+	m.actionErr = snapshot.Dismiss(m.restorable)
+	m.restorable = nil
+	return m
 }
 
 func restoredNotice(n int) string {

@@ -202,13 +202,15 @@ git branch -d cockpit/refunds
 
 ## Restore
 
-On quit, cockpit saves the running agents (agent, directory, window name, label, conversation id) to `~/.local/state/agent-cockpit/snapshot.json`. If some of them aren't running next time (closed, tmux restarted, reboot), a banner offers `R` to bring them back, resuming each conversation:
+While the dashboard runs, cockpit keeps `~/.local/state/agent-cockpit/snapshot.json` up to date with every agent (agent, directory, window name, label, conversation id, children, paused). An agent leaves it only when cockpit closes it (`:kill`, `cockpit kill`, `close_agent`), when you dismiss it with `x`, or once it runs again. So after a crash, reboot or tmux restart, every other agent is still there: a banner offers `R` (or `cockpit restore`) to bring them back with their children, resuming each conversation:
 
 | Agent | Resume command |
 |---|---|
 | claude | `claude --resume <id>` |
 | codex | `codex resume <id>` |
 | opencode | `opencode --standalone --session <id>` |
+
+Restore keeps going when one agent fails and reports which ones did not come back, for example because their folder is gone. They stay in the snapshot until you dismiss them.
 
 ## Projects
 

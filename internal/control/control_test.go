@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/sagidayan/agent-cockpit/internal/agents"
+	"github.com/sagidayan/agent-cockpit/internal/snapshot"
 	"github.com/sagidayan/agent-cockpit/internal/state"
 	"github.com/sagidayan/agent-cockpit/internal/tmux"
 	"github.com/sagidayan/agent-cockpit/internal/worktree"
@@ -35,7 +36,6 @@ func TestMatch(t *testing.T) {
 		{"no match", "nope", "", "no agent matches"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			a, err := match(live, tc.target)
@@ -107,12 +107,17 @@ func TestRestartRefuses(t *testing.T) {
 		{"unknown kind", state.Agent{Kind: "vim", SessionID: "s1"}, "unknown agent"},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.ErrorContains(t, Restart(agents.Live{Agent: tc.agent}), tc.wantErr)
 		})
 	}
+}
+
+func TestResumeMissingDir(t *testing.T) {
+	t.Parallel()
+	_, err := Resume("", snapshot.Entry{Kind: "claude", Label: "bug", Dir: "/nonexistent/repo"}, "", nil)
+	require.EqualError(t, err, "bug: /nonexistent/repo no longer exists")
 }
 
 func TestCleanWorktrees(t *testing.T) {
@@ -154,7 +159,6 @@ func TestReport(t *testing.T) {
 		{"done without message", state.Agent{Pane: "%4", Status: state.Done}, "", "[cockpit] child %4 is done. Read it with get_output / get_diff."},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			require.Equal(t, tc.want, report(tc.a, tc.label))

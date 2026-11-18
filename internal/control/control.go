@@ -81,17 +81,38 @@ func setOption(pane, name, value string) {
 	}
 }
 
+func Restore(entries []snapshot.Entry) ([]string, error) {
+	session, err := Session()
+	if err != nil {
+		return nil, err
+	}
+	live, err := agents.List()
+	if err != nil {
+		return nil, err
+	}
+	var panes []string
+	var errs []error
+	for _, e := range entries {
+		pane, err := Resume(session, e, "", live)
+		if pane != "" {
+			panes = append(panes, pane)
+		}
+		errs = append(errs, err)
+	}
+	return panes, errors.Join(errs...)
+}
+
 func Resume(session string, e snapshot.Entry, parent string, live []agents.Live) (string, error) {
 	pane, err := resumeOne(session, e, parent, live)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%s: %w", cmp.Or(e.Label, e.Name, filepath.Base(e.Dir)), err)
 	}
+	var errs []error
 	for _, c := range e.Children {
-		if _, err := Resume(session, c, pane, live); err != nil {
-			return pane, err
-		}
+		_, err := Resume(session, c, pane, live)
+		errs = append(errs, err)
 	}
-	return pane, nil
+	return pane, errors.Join(errs...)
 }
 
 func resumeOne(session string, e snapshot.Entry, parent string, live []agents.Live) (string, error) {
@@ -100,6 +121,9 @@ func resumeOne(session string, e snapshot.Entry, parent string, live []agents.Li
 			setOption(a.ID, parentOption, parent)
 			return a.ID, nil
 		}
+	}
+	if _, err := os.Stat(e.Dir); err != nil && !paths.IsChat(e.Dir) {
+		return "", fmt.Errorf("%s no longer exists", paths.Contract(e.Dir))
 	}
 	return Spawn(session, Request{
 		Kind: e.Kind, Dir: e.Dir, Name: cmp.Or(e.Name, filepath.Base(e.Dir)),
@@ -230,6 +254,7 @@ func Kill(a agents.Live) (string, error) {
 	if err := tmux.Kill(a.ID); err != nil {
 		return "", err
 	}
+	_ = snapshot.Forget(a)
 	if paths.IsChat(a.Pane.Cwd) {
 		return "", os.RemoveAll(a.Pane.Cwd)
 	}
