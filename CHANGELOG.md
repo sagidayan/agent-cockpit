@@ -1,7 +1,9 @@
 # Changelog
 
-## Unreleased
+## v0.0.8
 
+- Coding and ticket sessions you start are now **leads**: you talk to them, they hold the context and plan, and they delegate the work to children with a focused brief, then review it. A lead can't edit files (claude's edit tools are disabled) and its shell only runs read-only commands, enforced by the cockpit hook for claude and opencode. Leads show a **lead** tag and stay leads across restart and restore. Run `cockpit init` to update the hook.
+- New **Hands-on** mode for a session that makes changes itself. `lead = false` on a mode in `config.toml` turns leads off for it.
 - The "Bug fix" mode is now **Ticket** (`--mode ticket`, `mode: "ticket"`): it reads the ticket and fixes a bug, implements a task, or reports findings for an investigation. Its agents are named after the ticket (`SP-1234`). `bug` still works as an alias.
 - Directory paths autocomplete wherever cockpit asks for one: `:project add <name> <dir>` and `:new <dir>` list matching folders and `tab` completes them, and `tab` opens the highlighted folder in the new-session folder step.
 

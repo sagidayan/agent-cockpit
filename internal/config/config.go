@@ -36,6 +36,7 @@ type Mode struct {
 	Input  string `toml:"input"`
 	Agent  string `toml:"agent"`
 	Prompt string `toml:"prompt"`
+	Lead   *bool  `toml:"lead"`
 }
 
 type Editor struct {

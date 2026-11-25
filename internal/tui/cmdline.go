@@ -216,7 +216,9 @@ func cmdNew(m model, args string) (model, tea.Cmd) {
 		m.actionErr = cmp.Or(err, errors.New("run cockpit inside tmux to start sessions"))
 		return m, nil
 	}
-	return m, spawnWith(control.Request{Kind: kind, Dir: dir, Name: cmp.Or(name, filepath.Base(dir)), Mode: modes.Code})
+	cfg, _ := config.Load()
+	code, _ := modes.Find(modes.All(cfg.Modes), modes.Code)
+	return m, spawnWith(control.Request{Kind: kind, Dir: dir, Name: cmp.Or(name, filepath.Base(dir)), Mode: modes.Code, Lead: modes.IsLead(code)})
 }
 
 func cmdSend(m model, args string) (model, tea.Cmd) {

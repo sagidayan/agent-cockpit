@@ -160,9 +160,16 @@ func simpleCommands(s string) [][]string {
 			inWord = true
 		case dq:
 			word.WriteByte(c)
+		case c == '>' || c == '&' && i+1 < len(s) && s[i+1] == '>':
+			flushWord()
+			next, toFile := outputRedirect(s, i)
+			if toFile {
+				words = append(words, redirect)
+			}
+			i = next
 		case strings.IndexByte(";&|()\n", c) >= 0:
 			flushCmd()
-		case strings.IndexByte(" \t<>", c) >= 0:
+		case strings.IndexByte(" \t<", c) >= 0:
 			flushWord()
 		default:
 			word.WriteByte(c)
@@ -171,6 +178,26 @@ func simpleCommands(s string) [][]string {
 	}
 	flushCmd()
 	return cmds
+}
+
+func outputRedirect(s string, i int) (int, bool) {
+	if s[i] == '&' {
+		i++
+	}
+	if i+1 < len(s) && (s[i+1] == '>' || s[i+1] == '|') {
+		i++
+	}
+	if i+1 < len(s) && s[i+1] == '&' {
+		i++
+		j := i + 1
+		for j < len(s) && (s[j] >= '0' && s[j] <= '9' || s[j] == '-') {
+			j++
+		}
+		if j > i+1 {
+			return j - 1, false
+		}
+	}
+	return i, true
 }
 
 func substitution(s string, i int) (string, int) {

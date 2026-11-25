@@ -21,6 +21,7 @@ type Entry struct {
 	SessionID string  `json:"session_id"`
 	Mode      string  `json:"mode,omitempty"`
 	Paused    bool    `json:"paused,omitempty"`
+	Lead      bool    `json:"lead,omitempty"`
 	Children  []Entry `json:"children,omitempty"`
 }
 
@@ -90,7 +91,7 @@ func savedChildren(saved []Entry, a agents.Live) []Entry {
 }
 
 func entry(a agents.Live) Entry {
-	return Entry{Kind: a.Kind, Dir: a.Pane.Cwd, Name: a.WindowName, Label: a.Label, SessionID: a.SessionID, Mode: a.Mode, Paused: a.Paused}
+	return Entry{Kind: a.Kind, Dir: a.Pane.Cwd, Name: a.WindowName, Label: a.Label, SessionID: a.SessionID, Mode: a.Mode, Paused: a.Paused, Lead: a.Pane.Lead}
 }
 
 func Tree(a agents.Live, live []agents.Live) Entry {

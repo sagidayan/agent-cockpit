@@ -673,10 +673,11 @@ var taskQuestions = map[string]string{
 }
 
 var modeDescriptions = map[string]string{
-	modes.Code:   "work in a project folder",
-	modes.Review: "review a pull request",
-	modes.Ticket: "work on a ticket: bug, task or investigation",
-	modes.Chat:   "ask questions in a disposable folder",
+	modes.Code:    "lead a project: plans with you, delegates changes to child agents",
+	modes.HandsOn: "work in a project folder and make the changes itself",
+	modes.Review:  "review a pull request",
+	modes.Ticket:  "lead work on a ticket: bug, task or investigation",
+	modes.Chat:    "ask questions in a disposable folder",
 }
 
 var stepKeys = map[spawnStep][][2]string{
@@ -912,6 +913,9 @@ func (m model) meta(a agents.Live) string {
 		where += " " + a.WindowName
 	}
 	parts := []string{a.Kind}
+	if a.Pane.Lead {
+		parts = append(parts, withIcon(icons.lead, "lead"))
+	}
 	if a.Mode != "" && a.Mode != modes.Code {
 		parts = append(parts, withIcon(icons.modes[a.Mode], a.Mode))
 	}

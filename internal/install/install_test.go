@@ -59,7 +59,7 @@ func TestMergeClaudeHooks(t *testing.T) {
 	require.Len(t, stop, 2)
 	require.False(t, isCockpitGroup(stop[0]))
 	require.Equal(t, claudeGroup("/new path/cockpit", ""), stop[1])
-	require.Equal(t, []any{claudeGroup("/new path/cockpit", "Bash")}, hooks["PreToolUse"])
+	require.Equal(t, []any{claudeGroup("/new path/cockpit", "Bash|Edit|Write|NotebookEdit")}, hooks["PreToolUse"])
 	require.Equal(t, "'/new path/cockpit' hook claude", stop[1].(map[string]any)["hooks"].([]any)[0].(map[string]any)["command"])
 }
 

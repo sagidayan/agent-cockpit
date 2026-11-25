@@ -19,7 +19,10 @@ func parseOpencode(args []string, _ io.Reader) (event, error) {
 		return ev, err
 	}
 	if len(args) == 2 && args[0] == "guard" {
-		return event{deny: tmuxGuard(args[1])}, nil
+		return event{deny: guard("bash", args[1], isLead())}, nil
+	}
+	if len(args) == 3 && args[0] == "guard" {
+		return event{deny: guard(args[1], args[2], isLead())}, nil
 	}
 	if len(args) == 2 && args[0] == "stats" {
 		return opencodeStats(args[1])

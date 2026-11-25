@@ -152,9 +152,10 @@ A mode is a session template.
 
 | Mode | Input | What it does |
 |---|---|---|
-| `code` | dir | a coding agent, the task is its first prompt (default) |
+| `code` | dir | a [lead](#leads) for a project, the task is its first prompt (default) |
+| `hands-on` | dir | a coding agent that makes the changes itself, the task is its first prompt |
 | `review` | url | reviews a PR in `/tmp/prs/<repo>-<number>` |
-| `ticket` | ticket + dir | works on a ticket (key or URL, read with `jira` or `gh`): fixes a bug with a regression test, implements a task, or reports findings for an investigation. `bug` still works as an alias |
+| `ticket` | ticket + dir | a [lead](#leads) that works on a ticket (key or URL, read with `jira` or `gh`): fixes a bug with a regression test, implements a task, or reports findings for an investigation. `bug` still works as an alias |
 | `chat` | temp | a plain chat for questions, in a fresh `/tmp/cockpit-chats/chat-*` folder that `kill` deletes. Favorites still resume it: the history lives with the agent and the folder is recreated |
 
 Add your own (or override a built-in) in `config.toml`. `{{.Task}}`, `{{.URL}}` and `{{.Ticket}}` are filled from the form or `--prompt`/`--url`/`--ticket`:
@@ -166,17 +167,29 @@ title = "Docs"
 input = "dir"      # dir, url, ticket, none or temp
 agent = "claude"   # optional
 prompt = "Update the docs for: {{.Task}}"
+lead = true        # optional: start sessions in this mode as leads
 ```
 
 In the TUI, the mode is the first step of the new-session wizard. Any agent can split its work across children through the MCP tools; children appear in a tree under their parent.
 
 Favoriting or restoring an agent brings back its children too.
 
+### Leads
+
+A `code` or `ticket` session you start (from the TUI, `:new` or `cockpit new`) is a **lead**: you talk to it, it holds the context and plans, and it hands the actual work to children with a self-contained brief. It reviews what they did (`get_diff`, `review_agent`) and reports back to you. Children it spawns are ordinary agents.
+
+A lead does not change anything itself:
+
+- claude starts with `Edit`, `Write` and `NotebookEdit` disabled and the lead instructions in its system prompt; codex and opencode get them in the first prompt.
+- The cockpit hook limits a lead's shell to read-only commands: reading and searching files, `git log/diff/status/show`, `gh` and `jira` views, `kubectl get/describe/logs`, `gcloud ... list/describe`, `bq` selects and `curl` GETs. Writes, redirects to files, builds, tests and anything else are refused with a pointer to `spawn_agent`. OpenCode's `edit`, `write` and `patch` tools are refused too. Codex has no hook, so it only gets the instructions.
+
+Leads show a **lead** tag on their card and stay leads across `:restart`, restore and favorites. Use the `hands-on` mode for a session that makes changes itself, or set `lead = false` on the `code` or `ticket` mode in `config.toml`. Run `cockpit init` after upgrading so the hook covers the edit tools.
+
 ## New session wizard
 
 `n` opens a short wizard, one question per step. Steps that don't apply are skipped:
 
-1. **Type**: coding, PR review, ticket, chat or a custom mode.
+1. **Type**: coding (a lead), hands-on, PR review, ticket, chat or a custom mode.
 2. **Agent**: skipped when only one agent CLI is installed.
 3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Ticket asks for the ticket, then a project. Chat skips this.
 4. **Worktree**: when the folder is in a git repo, choose whether the agent gets its own [worktree](#worktrees).
@@ -194,7 +207,7 @@ A project's configured agent is used unless you picked one in the agent step.
 
 ## Worktrees
 
-A coding or ticket agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
+A coding, hands-on or ticket agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
 
 The worktree is created at `<repo>-worktrees/<slug>` next to the main checkout, on a new `cockpit/<slug>` branch from the chosen folder's current HEAD. The slug comes from the label, else the session name, else the folder name. If the folder or branch already exists, `-2`, `-3`, ... is appended.
 

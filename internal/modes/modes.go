@@ -19,10 +19,11 @@ import (
 )
 
 const (
-	Code   = "code"
-	Review = "review"
-	Ticket = "ticket"
-	Chat   = "chat"
+	Code    = "code"
+	HandsOn = "hands-on"
+	Review  = "review"
+	Ticket  = "ticket"
+	Chat    = "chat"
 
 	InputDir    = "dir"
 	InputURL    = "url"
@@ -48,10 +49,13 @@ Do not commit, push or update the ticket unless I ask.{{if .Task}}
 
 Also: {{.Task}}{{end}}`
 
+var lead = true
+
 var builtin = []config.Mode{
-	{Name: Code, Title: "Coding", Input: InputDir, Prompt: "{{.Task}}"},
+	{Name: Code, Title: "Coding", Input: InputDir, Prompt: "{{.Task}}", Lead: &lead},
+	{Name: HandsOn, Title: "Hands-on", Input: InputDir, Prompt: "{{.Task}}"},
 	{Name: Review, Title: "PR review", Input: InputURL, Prompt: reviewPrompt},
-	{Name: Ticket, Title: "Ticket", Input: InputTicket, Prompt: ticketPrompt},
+	{Name: Ticket, Title: "Ticket", Input: InputTicket, Prompt: ticketPrompt, Lead: &lead},
 	{Name: Chat, Title: "Chat", Input: InputTemp, Prompt: "{{.Task}}"},
 }
 
@@ -79,6 +83,7 @@ func merge(base, over config.Mode) config.Mode {
 		Input:  cmp.Or(over.Input, base.Input),
 		Agent:  cmp.Or(over.Agent, base.Agent),
 		Prompt: cmp.Or(over.Prompt, base.Prompt),
+		Lead:   cmp.Or(over.Lead, base.Lead),
 	}
 }
 
@@ -217,5 +222,9 @@ func Build(m config.Mode, s Spec) (control.Request, error) {
 			}
 		}
 	}
-	return control.Request{Kind: cmp.Or(s.Kind, m.Agent), Dir: dir, Name: name, Label: s.Label, Prompt: prompt, Mode: m.Name}, nil
+	return control.Request{Kind: cmp.Or(s.Kind, m.Agent), Dir: dir, Name: name, Label: s.Label, Prompt: prompt, Mode: m.Name, Lead: IsLead(m)}, nil
+}
+
+func IsLead(m config.Mode) bool {
+	return m.Lead != nil && *m.Lead
 }

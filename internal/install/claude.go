@@ -15,7 +15,7 @@ var claudeEvents = []struct{ name, matcher string }{
 	{"Notification", "permission_prompt|elicitation_dialog"},
 	{"Stop", ""},
 	{"SessionEnd", ""},
-	{"PreToolUse", "Bash"},
+	{"PreToolUse", "Bash|Edit|Write|NotebookEdit"},
 }
 
 const (

@@ -51,9 +51,7 @@ func parseClaude(_ []string, stdin io.Reader) (event, error) {
 	case "SessionEnd":
 		ev.remove = true
 	case "PreToolUse":
-		if in.ToolName == "Bash" {
-			ev.deny = tmuxGuard(in.ToolInput.Command)
-		}
+		ev.deny = guard(in.ToolName, in.ToolInput.Command, isLead())
 	}
 	return ev, nil
 }

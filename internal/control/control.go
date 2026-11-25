@@ -26,11 +26,12 @@ const (
 	editorOption = "@cockpit_editor_for"
 	modeOption   = "@cockpit_mode"
 	parentOption = "@cockpit_parent"
+	leadOption   = "@cockpit_lead"
 )
 
 type Request struct {
 	Kind, Dir, Name, Prompt, ResumeID, Label, Mode, Parent string
-	Paused                                                 bool
+	Paused, Lead                                           bool
 }
 
 const escapeGap = 150 * time.Millisecond
@@ -47,9 +48,10 @@ func Spawn(session string, r Request) (string, error) {
 			return "", err
 		}
 	}
-	command := launch.Command(r.Kind, r.ResumeID)
+	lead := r.Lead && r.Parent == ""
+	command := launch.Command(r.Kind, r.ResumeID, lead)
 	if r.ResumeID == "" {
-		command = launch.Start(r.Kind, r.Prompt)
+		command = launch.Start(r.Kind, r.Prompt, lead)
 	}
 	if command == "" {
 		return "", fmt.Errorf("unknown agent %q", r.Kind)
@@ -68,8 +70,11 @@ func Spawn(session string, r Request) (string, error) {
 	setOption(pane, tmux.AgentOption, "1")
 	setOption(pane, modeOption, r.Mode)
 	setOption(pane, parentOption, r.Parent)
+	if lead {
+		setOption(pane, leadOption, "1")
+	}
 	_ = state.Save(state.Agent{Pane: pane, Kind: r.Kind, Cwd: r.Dir, Status: state.Idle, SessionID: r.ResumeID, Paused: r.Paused})
-	if r.Mode != "" && r.Mode != "code" {
+	if r.Mode != "" && r.Mode != "code" && r.Mode != "hands-on" {
 		return pane, nil
 	}
 	return pane, openEditor(pane, r.Dir)
@@ -127,7 +132,7 @@ func resumeOne(session string, e snapshot.Entry, parent string, live []agents.Li
 	}
 	return Spawn(session, Request{
 		Kind: e.Kind, Dir: e.Dir, Name: cmp.Or(e.Name, filepath.Base(e.Dir)),
-		ResumeID: e.SessionID, Label: e.Label, Mode: e.Mode, Parent: parent, Paused: e.Paused,
+		ResumeID: e.SessionID, Label: e.Label, Mode: e.Mode, Parent: parent, Paused: e.Paused, Lead: e.Lead,
 	})
 }
 
@@ -311,7 +316,7 @@ func Restart(a agents.Live) error {
 	if a.SessionID == "" {
 		return fmt.Errorf("no session recorded for this %s agent, cannot resume it", a.Kind)
 	}
-	command := launch.Command(a.Kind, a.SessionID)
+	command := launch.Command(a.Kind, a.SessionID, a.Pane.Lead)
 	if command == "" {
 		return fmt.Errorf("unknown agent %q", a.Kind)
 	}
@@ -342,7 +347,7 @@ func record(a agents.Live) state.Closed {
 	return state.Closed{
 		Name: a.WindowName, Label: a.Label, Kind: a.Kind, Dir: a.Pane.Cwd, Mode: a.Mode,
 		Parent: parentName(a.Parent), SessionID: a.SessionID, Message: a.Message,
-		Diff: diffSummary(a), CostUSD: agents.Spent(a), ClosedAt: time.Now(),
+		Diff: diffSummary(a), CostUSD: agents.Spent(a), Lead: a.Pane.Lead, ClosedAt: time.Now(),
 	}
 }
 

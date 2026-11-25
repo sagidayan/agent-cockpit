@@ -3,9 +3,9 @@ package tui
 import "github.com/sagidayan/agent-cockpit/internal/state"
 
 type iconSet struct {
-	title, project, folder, cost, model, diff, clock, label, search, restore, plus, star string
-	kinds, modes                                                                         map[string]string
-	status                                                                               map[state.Status]string
+	title, project, folder, cost, model, diff, clock, label, search, restore, plus, star, lead string
+	kinds, modes                                                                               map[string]string
+	status                                                                                     map[state.Status]string
 }
 
 var nerdIcons = iconSet{
@@ -21,8 +21,9 @@ var nerdIcons = iconSet{
 	restore: "\U000F006F",
 	plus:    "\uF067",
 	star:    "\U000F04CE",
+	lead:    "\U000F01A5",
 	kinds:   map[string]string{"claude": "\uEC10", "codex": "\U000F09D1", "opencode": "\uEA85"},
-	modes:   map[string]string{"code": "\uF44F", "review": "\uF407", "bug": "\uF188", "ticket": "\uF145", "chat": "\uF086"},
+	modes:   map[string]string{"code": "\uF44F", "hands-on": "\uF44F", "review": "\uF407", "bug": "\uF188", "ticket": "\uF145", "chat": "\uF086"},
 	status: map[state.Status]string{
 		state.NeedsInput: "\U000F009E",
 		state.Done:       "\U000F05E0",

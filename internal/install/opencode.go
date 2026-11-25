@@ -13,9 +13,11 @@ import { promisify } from "node:util"
 
 const cockpit = %q
 const hook = (...args) => execFile(cockpit, ["hook", "opencode", ...args], () => {})
+const shells = ["shell", "bash"]
+const edits = ["edit", "write", "patch"]
 const guard = async ({ tool, input }) => {
-  if (tool !== "shell" && tool !== "bash") return
-  const { stdout } = await promisify(execFile)(cockpit, ["hook", "opencode", "guard", String(input?.command ?? "")]).catch(() => ({}))
+  if (!shells.includes(tool) && !(edits.includes(tool) && process.env.COCKPIT_LEAD === "1")) return
+  const { stdout } = await promisify(execFile)(cockpit, ["hook", "opencode", "guard", tool, String(input?.command ?? "")]).catch(() => ({}))
   if (stdout) throw new Error(JSON.parse(stdout).hookSpecificOutput.permissionDecisionReason)
 }
 const statuses = {

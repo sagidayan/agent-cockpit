@@ -141,6 +141,7 @@ func (e *env) environ(pane string) []string {
 		"HOME="+e.home,
 		"XDG_STATE_HOME="+filepath.Join(e.home, ".local", "state"),
 		"XDG_CONFIG_HOME="+filepath.Join(e.home, ".config"),
+		"PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
 	)
 }
 

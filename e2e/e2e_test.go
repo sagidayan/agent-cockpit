@@ -3,7 +3,10 @@
 package e2e
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -132,4 +135,36 @@ func TestChildReportReachesParent(t *testing.T) {
 	e.hook(child, "UserPromptSubmit", "prompt", "run the tests")
 	e.hook(child, "Stop", "last_assistant_message", "All tests pass")
 	e.showing(parent, "[cockpit] child "+child+" is done: All tests pass")
+}
+
+func TestNewStartsALead(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name string
+		mode string
+		lead bool
+	}{
+		{name: "coding is a lead", mode: "code", lead: true},
+		{name: "hands-on is not", mode: "hands-on", lead: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := newEnv(t)
+			e.tmux("set-environment", "-g", "PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+			out, err := e.cockpit("new", "--mode", tc.mode, "--dir", e.dir, "--prompt", "plan it")
+			require.NoError(t, err, out)
+			pane := strings.TrimSpace(out)
+			var launched []string
+			e.eventually(func() bool {
+				data, err := os.ReadFile(filepath.Join(e.dir, ".fakeagent"))
+				launched = strings.Split(string(data), "\n")
+				return err == nil
+			})
+			require.Equal(t, tc.lead, launched[0] == "1")
+			require.Equal(t, tc.lead, slices.Contains(launched, "--disallowedTools"))
+			require.Equal(t, "plan it", launched[len(launched)-1])
+			require.Equal(t, tc.lead, e.format(pane, "#{@cockpit_lead}") == "1")
+		})
+	}
 }

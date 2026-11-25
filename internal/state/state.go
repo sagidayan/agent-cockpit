@@ -63,6 +63,7 @@ type Closed struct {
 	Message   string    `json:"message,omitempty"`
 	Diff      string    `json:"diff,omitempty"`
 	CostUSD   float64   `json:"cost_usd,omitempty"`
+	Lead      bool      `json:"lead,omitempty"`
 	ClosedAt  time.Time `json:"closed_at"`
 }
 

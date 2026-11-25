@@ -21,6 +21,7 @@ type Pane struct {
 	Mode       string
 	Parent     string
 	PID        string
+	Lead       bool
 }
 
 const (
@@ -114,7 +115,7 @@ func raw(args ...string) (string, error) {
 
 func ListPanes() ([]Pane, error) {
 	out, err := run("list-panes", "-a", "-F",
-		"#{pane_id}\t#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{pane_current_command}\t#{@cockpit_label}\t#{@cockpit_mode}\t#{@cockpit_parent}\t#{pane_pid}")
+		"#{pane_id}\t#{session_name}\t#{window_index}\t#{window_name}\t#{pane_current_path}\t#{pane_current_command}\t#{@cockpit_label}\t#{@cockpit_mode}\t#{@cockpit_parent}\t#{pane_pid}\t#{@cockpit_lead}")
 	if err != nil && noServer(err) {
 		return nil, nil
 	}
@@ -134,11 +135,11 @@ func parsePanes(out string) []Pane {
 	seen := map[string]bool{}
 	for line := range strings.SplitSeq(strings.TrimRight(out, "\n"), "\n") {
 		f := strings.Split(line, "\t")
-		if len(f) != 10 || seen[f[0]] {
+		if len(f) != 11 || seen[f[0]] {
 			continue
 		}
 		seen[f[0]] = true
-		panes = append(panes, Pane{f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9]})
+		panes = append(panes, Pane{f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7], f[8], f[9], f[10] == "1"})
 	}
 	return panes
 }

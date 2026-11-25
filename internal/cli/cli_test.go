@@ -35,18 +35,18 @@ func TestRequest(t *testing.T) {
 		want    control.Request
 		wantErr string
 	}{
-		{"defaults", nil, false, control.Request{Kind: "claude", Dir: "/work", Mode: "code"}, ""},
-		{"relative dir", []string{"--dir", "sub/.."}, false, control.Request{Kind: "claude", Dir: "/work", Mode: "code"}, ""},
-		{"absolute dir", []string{"--dir", "/tmp/x/"}, false, control.Request{Kind: "claude", Dir: "/tmp/x", Mode: "code"}, ""},
-		{"project fills dir name agent", []string{"--project", "api"}, false, control.Request{Kind: "codex", Dir: "/opt/api", Name: "api", Mode: "code"}, ""},
-		{"flags override project", []string{"--project", "api", "--agent", "claude", "--name", "n"}, false, control.Request{Kind: "claude", Dir: "/opt/api", Name: "n", Mode: "code"}, ""},
-		{"project without agent", []string{"--project", "web"}, false, control.Request{Kind: "claude", Dir: "/opt/web", Name: "web", Mode: "code"}, ""},
-		{"all flags", []string{"--agent", "opencode", "--label", "L", "--prompt", "hi there"}, false, control.Request{Kind: "opencode", Dir: "/work", Label: "L", Prompt: "hi there", Mode: "code"}, ""},
+		{"defaults", nil, false, control.Request{Kind: "claude", Dir: "/work", Mode: "code", Lead: true}, ""},
+		{"relative dir", []string{"--dir", "sub/.."}, false, control.Request{Kind: "claude", Dir: "/work", Mode: "code", Lead: true}, ""},
+		{"absolute dir", []string{"--dir", "/tmp/x/"}, false, control.Request{Kind: "claude", Dir: "/tmp/x", Mode: "code", Lead: true}, ""},
+		{"project fills dir name agent", []string{"--project", "api"}, false, control.Request{Kind: "codex", Dir: "/opt/api", Name: "api", Mode: "code", Lead: true}, ""},
+		{"flags override project", []string{"--project", "api", "--agent", "claude", "--name", "n"}, false, control.Request{Kind: "claude", Dir: "/opt/api", Name: "n", Mode: "code", Lead: true}, ""},
+		{"project without agent", []string{"--project", "web"}, false, control.Request{Kind: "claude", Dir: "/opt/web", Name: "web", Mode: "code", Lead: true}, ""},
+		{"all flags", []string{"--agent", "opencode", "--label", "L", "--prompt", "hi there"}, false, control.Request{Kind: "opencode", Dir: "/work", Label: "L", Prompt: "hi there", Mode: "code", Lead: true}, ""},
 		{"worktree outside a repo", []string{"--worktree"}, false, control.Request{}, "/work is not in a git repository"},
 		{"review infers dir and name", []string{"--mode", "review", "--url", "https://github.com/acme/web/pull/7"}, false, control.Request{Kind: "claude", Dir: "/tmp/prs/web-7", Name: "review web#7", Prompt: "R https://github.com/acme/web/pull/7", Mode: "review"}, ""},
 		{"review without url", []string{"--mode", "review"}, false, control.Request{}, "PR URL is required"},
-		{"ticket in cwd named after ticket", []string{"--mode", "ticket", "--ticket", "SP-7"}, false, control.Request{Kind: "claude", Dir: "/work", Name: "SP-7", Prompt: "B SP-7", Mode: "ticket"}, ""},
-		{"bug is an alias for ticket", []string{"--mode", "bug", "--ticket", "SP-7"}, false, control.Request{Kind: "claude", Dir: "/work", Name: "SP-7", Prompt: "B SP-7", Mode: "ticket"}, ""},
+		{"ticket in cwd named after ticket", []string{"--mode", "ticket", "--ticket", "SP-7"}, false, control.Request{Kind: "claude", Dir: "/work", Name: "SP-7", Prompt: "B SP-7", Mode: "ticket", Lead: true}, ""},
+		{"bug is an alias for ticket", []string{"--mode", "bug", "--ticket", "SP-7"}, false, control.Request{Kind: "claude", Dir: "/work", Name: "SP-7", Prompt: "B SP-7", Mode: "ticket", Lead: true}, ""},
 		{"ticket without ticket", []string{"--mode", "ticket"}, false, control.Request{}, "a ticket is required"},
 		{"no-input mode in home", []string{"--mode", "standup", "--prompt", "ship it"}, false, control.Request{Kind: "claude", Dir: home, Name: "standup", Prompt: "S ship it", Mode: "standup"}, ""},
 		{"no-input mode with dir", []string{"--mode", "standup", "--dir", "sub"}, false, control.Request{Kind: "claude", Dir: "/work/sub", Name: "standup", Prompt: "S", Mode: "standup"}, ""},
@@ -57,7 +57,7 @@ func TestRequest(t *testing.T) {
 		{"stray argument", []string{"extra"}, false, control.Request{}, `unexpected argument "extra"`},
 		{"unknown flag", []string{"--bogus"}, false, control.Request{}, "bogus"},
 		{"no agent installed", nil, true, control.Request{}, "no agent CLI installed"},
-		{"explicit agent when none installed", []string{"--agent", "codex"}, true, control.Request{Kind: "codex", Dir: "/work", Mode: "code"}, ""},
+		{"explicit agent when none installed", []string{"--agent", "codex"}, true, control.Request{Kind: "codex", Dir: "/work", Mode: "code", Lead: true}, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -105,3 +105,27 @@ func TestBuild(t *testing.T) {
 		})
 	}
 }
+
+func TestLead(t *testing.T) {
+	t.Parallel()
+	off := false
+	on := true
+	all := All([]config.Mode{{Name: "bug", Lead: &off}, {Name: "docs"}, {Name: "plan", Lead: &on}})
+	cases := []struct {
+		mode string
+		want bool
+	}{
+		{mode: Code, want: true},
+		{mode: HandsOn, want: false},
+		{mode: Review, want: false},
+		{mode: Ticket, want: false},
+		{mode: Chat, want: false},
+		{mode: "docs", want: false},
+		{mode: "plan", want: true},
+	}
+	for _, tc := range cases {
+		m, ok := Find(all, tc.mode)
+		require.True(t, ok)
+		require.Equal(t, tc.want, IsLead(m), tc.mode)
+	}
+}

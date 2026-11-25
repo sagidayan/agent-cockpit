@@ -62,7 +62,7 @@ func (m model) resumeClosed(c state.Closed) (tea.Model, tea.Cmd) {
 		m.actionErr = errors.New("run cockpit inside tmux to resume sessions")
 	default:
 		m.actionErr = state.RemoveClosed(c)
-		return m, restore([]snapshot.Entry{{Kind: c.Kind, Dir: c.Dir, Name: c.Name, Label: c.Label, SessionID: c.SessionID, Mode: c.Mode}})
+		return m, restore([]snapshot.Entry{{Kind: c.Kind, Dir: c.Dir, Name: c.Name, Label: c.Label, SessionID: c.SessionID, Mode: c.Mode, Lead: c.Lead}})
 	}
 	return m, nil
 }
