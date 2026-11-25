@@ -536,8 +536,12 @@ func (m model) footer() string {
 func (m model) promptView() string {
 	var rows []string
 	if m.prompt == ':' {
-		for _, c := range completions(m.line.Value()) {
-			rows = append(rows, "   "+keyStyle.Render(c.name)+" "+mutedStyle.Render(c.args))
+		found := completions(m.line.Value())
+		for _, c := range found[:min(len(found), maxSuggestions)] {
+			rows = append(rows, "   "+keyStyle.Render(c.label)+" "+mutedStyle.Render(c.hint))
+		}
+		if more := len(found) - maxSuggestions; more > 0 {
+			rows = append(rows, "   "+subtleStyle.Render(fmt.Sprintf("%d more", more)))
 		}
 	}
 	prefix := string(m.prompt)
@@ -671,7 +675,7 @@ var taskQuestions = map[string]string{
 var modeDescriptions = map[string]string{
 	modes.Code:   "work in a project folder",
 	modes.Review: "review a pull request",
-	modes.Bug:    "fix a bug from a ticket",
+	modes.Ticket: "work on a ticket: bug, task or investigation",
 	modes.Chat:   "ask questions in a disposable folder",
 }
 
@@ -679,7 +683,7 @@ var stepKeys = map[spawnStep][][2]string{
 	stepMode:     {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "cancel"}},
 	stepKind:     {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
 	stepProject:  {{"type", "filter"}, {"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},
-	stepDir:      {{"type", "filter"}, {"↑↓", "choose"}, {"→", "open"}, {"←", "up"}, {"⏎", "next"}, {"esc", "back"}},
+	stepDir:      {{"type", "filter"}, {"↑↓", "choose"}, {"tab/→", "open"}, {"←", "up"}, {"⏎", "next"}, {"esc", "back"}},
 	stepURL:      {{"⏎", "next"}, {"esc", "back"}},
 	stepTicket:   {{"⏎", "next"}, {"esc", "back"}},
 	stepWorktree: {{"↑↓", "choose"}, {"⏎", "next"}, {"esc", "back"}},

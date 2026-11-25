@@ -41,7 +41,7 @@ To do it by hand instead, `cockpit setup <claude|codex|opencode>` prints the sni
 
 The claude hooks and the opencode plugin also guard your tmux server from the agents' own shell commands. A command that would kill part of the default tmux server (`kill-server`, `kill-session`, `kill-window`, `kill-pane`, `respawn-pane`, `respawn-window`, `unlink-window`, including aliases and prefixes) is blocked before it runs, and the agent is told to use `tmux -L <name>` for test servers, or to ask you to run it. Everything else, and anything with `-L` or `-S`, runs as usual. It checks every command in pipelines, `&&`/`;` chains, subshells, `$(...)`, `env X=.. tmux` and `bash -c`, and when the tmux binary is only known at runtime (`$TMUX_BIN kill-server`) it still blocks `kill-server` and `kill-session`. Codex documents an equivalent `PreToolUse` hook, but cockpit doesn't install one for it yet since it hasn't been tested there.
 
-MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `review_agent` (spawns a read-only reviewer of an agent's changes as your child; forward its findings with `send_task`), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "bug"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn. When a child finishes or needs input and its claude parent isn't blocked in `wait_for_agent` on it, cockpit types a `[cockpit] child %12 (label) is done: ...` line into the parent's pane (turn off with `[spawn] notify_parent = false`).
+MCP tools: `list_agents`, `list_projects`, `spawn_agent`, `send_task`, `wait_for_agent`, `get_output`, `get_diff` (same diff as `:diff`, with a file and line summary on top), `review_agent` (spawns a read-only reviewer of an agent's changes as your child; forward its findings with `send_task`), `close_agent`. Every agent can delegate: agents started with `spawn_agent` are children of the calling agent, and children can spawn their own, up to `[spawn] max_depth` levels. `spawn_agent` takes `mode: "ticket"` with a `ticket`, and `worktree: true` to start the child in its own [worktree](#worktrees). An agent closes each child (and the child's own children) with `close_agent` once its work is done and reviewed; it can't close agents it didn't spawn. When a child finishes or needs input and its claude parent isn't blocked in `wait_for_agent` on it, cockpit types a `[cockpit] child %12 (label) is done: ...` line into the parent's pane (turn off with `[spawn] notify_parent = false`).
 
 ## Skill
 
@@ -82,7 +82,7 @@ The cockpit window splits into the agent list and a live viewer. Moving through 
 | `n` | start a new agent session (see below) |
 | `1`-`9` | jump to an agent |
 | `/` | filter the list live (name, repo, agent, status, prompt, reply); `esc` clears |
-| `:` | run a command (tab completes, any unique prefix works) |
+| `:` | run a command (tab completes commands and directories, any unique prefix works) |
 | `f` / `F` | toggle favorite (★) / favorites list: `enter` jumps to a running one or resumes it, `d` removes |
 | `R` / `x` | restore / dismiss sessions from last time |
 | `?` | help (`↑`/`↓`, `pgup`/`pgdn` or the mouse wheel scroll, `esc` closes) |
@@ -128,7 +128,7 @@ Every action is also a subcommand, for scripts and other agents. `TARGET` is a p
 ```sh
 pane=$(cockpit new --project payments --label refunds --prompt "fix the flaky refund test")
 cockpit new --mode review --url https://github.com/acme/payments-service/pull/42
-cockpit new --mode bug --project api --ticket SP-1234 --worktree
+cockpit new --mode ticket --project api --ticket SP-1234 --worktree
 cockpit new --mode chat --prompt "what does SIGKILL (Code Signature Invalid) mean?"
 cockpit new --project payments --label refunds --worktree --prompt "..."   # own git worktree, see below
 cockpit list                      # children indented under their parent; or --json
@@ -154,7 +154,7 @@ A mode is a session template.
 |---|---|---|
 | `code` | dir | a coding agent, the task is its first prompt (default) |
 | `review` | url | reviews a PR in `/tmp/prs/<repo>-<number>` |
-| `bug` | ticket + dir | fixes the bug in a ticket (key or URL, read with `jira` or `gh`), with a regression test |
+| `ticket` | ticket + dir | works on a ticket (key or URL, read with `jira` or `gh`): fixes a bug with a regression test, implements a task, or reports findings for an investigation. `bug` still works as an alias |
 | `chat` | temp | a plain chat for questions, in a fresh `/tmp/cockpit-chats/chat-*` folder that `kill` deletes. Favorites still resume it: the history lives with the agent and the folder is recreated |
 
 Add your own (or override a built-in) in `config.toml`. `{{.Task}}`, `{{.URL}}` and `{{.Ticket}}` are filled from the form or `--prompt`/`--url`/`--ticket`:
@@ -176,9 +176,9 @@ Favoriting or restoring an agent brings back its children too.
 
 `n` opens a short wizard, one question per step. Steps that don't apply are skipped:
 
-1. **Type**: coding, PR review, bug fix, chat or a custom mode.
+1. **Type**: coding, PR review, ticket, chat or a custom mode.
 2. **Agent**: skipped when only one agent CLI is installed.
-3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Bug fix asks for the ticket, then a project. Chat skips this.
+3. **Where**: coding picks a project (or "other folder…" for any directory). PR review asks for the PR URL. Ticket asks for the ticket, then a project. Chat skips this.
 4. **Worktree**: when the folder is in a git repo, choose whether the agent gets its own [worktree](#worktrees).
 5. **Details**: the first prompt (task, notes or question) and an optional name.
 
@@ -187,14 +187,14 @@ Favoriting or restoring an agent brings back its children too.
 | `↑`/`↓` | choose |
 | `enter` | next step; starts the session on the last step |
 | `esc` | close the folder list, else back a step; cancels on the first step |
-| `→` / `←` | in the folder step: open the highlighted directory / go up (cursor at end) |
+| `tab` or `→` / `←` | in the folder step: open the highlighted directory / go up (cursor at end) |
 | `tab` | switch between the prompt and name on the last step |
 
 A project's configured agent is used unless you picked one in the agent step.
 
 ## Worktrees
 
-A coding or bug-fix agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
+A coding or ticket agent can run in its own git worktree, so several agents can work on one repo in parallel without sharing a checkout. Use the wizard's worktree step, `cockpit new --worktree` or `spawn_agent` with `worktree: true`.
 
 The worktree is created at `<repo>-worktrees/<slug>` next to the main checkout, on a new `cockpit/<slug>` branch from the chosen folder's current HEAD. The slug comes from the label, else the session name, else the folder name. If the folder or branch already exists, `-2`, `-3`, ... is appended.
 

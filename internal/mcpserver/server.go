@@ -68,7 +68,7 @@ func newServer() *mcp.Server {
 	}, listProjects)
 	addTool(s, &mcp.Tool{
 		Name:        "spawn_agent",
-		Description: "Start a new child agent in a project or directory with a first task. Use mode bug with a ticket to have it fix a reported bug. Children can spawn their own children (nesting depth is capped). Pass worktree: true when several agents work in one repo. Returns its pane id; follow with wait_for_agent, review with get_output and get_diff, and close it with close_agent once its work is done.",
+		Description: "Start a new child agent in a project or directory with a first task. Use mode ticket with a ticket to have it work on a bug, task or investigation from your tracker. Children can spawn their own children (nesting depth is capped). Pass worktree: true when several agents work in one repo. Returns its pane id; follow with wait_for_agent, review with get_output and get_diff, and close it with close_agent once its work is done.",
 	}, spawnAgent)
 	addTool(s, &mcp.Tool{
 		Name:        "list_agents",

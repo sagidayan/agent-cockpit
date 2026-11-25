@@ -24,8 +24,8 @@ type spawnArgs struct {
 	Task     string `json:"task" jsonschema:"self-contained first prompt for the agent"`
 	Agent    string `json:"agent,omitempty" jsonschema:"claude, codex or opencode (default: the project's agent, else yours)"`
 	Label    string `json:"label,omitempty" jsonschema:"short label shown in the cockpit"`
-	Mode     string `json:"mode,omitempty" jsonschema:"code (default) or bug; bug fixes the bug described in ticket"`
-	Ticket   string `json:"ticket,omitempty" jsonschema:"bug mode: ticket key or URL, e.g. SP-1234 or a GitHub issue URL"`
+	Mode     string `json:"mode,omitempty" jsonschema:"code (default) or ticket; ticket works on the ticket in ticket (bug, task or investigation)"`
+	Ticket   string `json:"ticket,omitempty" jsonschema:"ticket mode: ticket key or URL, e.g. SP-1234 or a GitHub issue URL"`
 	Worktree bool   `json:"worktree,omitempty" jsonschema:"work in a new git worktree on a cockpit/<label> branch from the folder's HEAD, so parallel agents in one repo don't share a checkout"`
 }
 
@@ -89,8 +89,8 @@ func spawnRequest(in spawnArgs) (control.Request, error) {
 		return control.Request{}, err
 	}
 	m, ok := modes.Find(modes.All(cfg.Modes), cmp.Or(in.Mode, modes.Code))
-	if !ok || (m.Name != modes.Code && m.Name != modes.Bug) {
-		return control.Request{}, fmt.Errorf("mode must be code or bug, got %q", in.Mode)
+	if !ok || (m.Name != modes.Code && m.Name != modes.Ticket) {
+		return control.Request{}, fmt.Errorf("mode must be code or ticket, got %q", in.Mode)
 	}
 	spec, err := spawnSpec(in)
 	if err != nil {

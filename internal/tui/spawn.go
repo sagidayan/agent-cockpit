@@ -330,7 +330,7 @@ func (f spawnForm) update(msg tea.KeyPressMsg) (spawnForm, tea.Cmd) {
 		case (key == "up" || key == "down") && len(f.matches) > 0:
 			f.pick, _ = move(f.pick, len(f.matches), key)
 			return f, nil
-		case key == "right" && len(f.matches) > 0 && f.atEnd():
+		case (key == "tab" || key == "right" && f.atEnd()) && len(f.matches) > 0:
 			return f.accept(), nil
 		case key == "left" && f.atEnd():
 			return f.parentDir(), nil

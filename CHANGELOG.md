@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- The "Bug fix" mode is now **Ticket** (`--mode ticket`, `mode: "ticket"`): it reads the ticket and fixes a bug, implements a task, or reports findings for an investigation. Its agents are named after the ticket (`SP-1234`). `bug` still works as an alias.
+- Directory paths autocomplete wherever cockpit asks for one: `:project add <name> <dir>` and `:new <dir>` list matching folders and `tab` completes them, and `tab` opens the highlighted folder in the new-session folder step.
+
 ## v0.0.7
 
 - Fix: `:restart` no longer loses the agent's saved state (status, pause, touched repos, closed children's cost) when the old session's exit hook fires during the relaunch.

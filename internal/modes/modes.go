@@ -21,7 +21,7 @@ import (
 const (
 	Code   = "code"
 	Review = "review"
-	Bug    = "bug"
+	Ticket = "ticket"
 	Chat   = "chat"
 
 	InputDir    = "dir"
@@ -38,9 +38,12 @@ Do not push, approve or comment on the PR unless I ask.{{if .Task}}
 
 Also: {{.Task}}{{end}}`
 
-const bugPrompt = `Fix the bug described in {{.Ticket}}
-Read the ticket first with the matching CLI (jira for a Jira key or URL, gh for a GitHub issue).
-Reproduce it, find the root cause, fix it and add a test that fails without the fix.
+const ticketPrompt = `Work on the ticket {{.Ticket}}
+Read it first, with its comments, using the matching CLI (jira for a Jira key or URL, gh for a GitHub issue), and work out what it asks for:
+- a bug: reproduce it, find the root cause, fix it and add a test that fails without the fix.
+- a task or feature: implement it, with tests.
+- an investigation or question: dig in and report what you found, with evidence (file:line, commands, data). Change code only if the ticket asks for it.
+If the ticket is unclear, say what is missing before guessing.
 Do not commit, push or update the ticket unless I ask.{{if .Task}}
 
 Also: {{.Task}}{{end}}`
@@ -48,7 +51,7 @@ Also: {{.Task}}{{end}}`
 var builtin = []config.Mode{
 	{Name: Code, Title: "Coding", Input: InputDir, Prompt: "{{.Task}}"},
 	{Name: Review, Title: "PR review", Input: InputURL, Prompt: reviewPrompt},
-	{Name: Bug, Title: "Bug fix", Input: InputTicket, Prompt: bugPrompt},
+	{Name: Ticket, Title: "Ticket", Input: InputTicket, Prompt: ticketPrompt},
 	{Name: Chat, Title: "Chat", Input: InputTemp, Prompt: "{{.Task}}"},
 }
 
@@ -59,6 +62,7 @@ type Inputs struct {
 func All(custom []config.Mode) []config.Mode {
 	all := slices.Clone(builtin)
 	for _, c := range custom {
+		c.Name = cmp.Or(aliases[c.Name], c.Name)
 		if i := slices.IndexFunc(all, func(m config.Mode) bool { return m.Name == c.Name }); i >= 0 {
 			all[i] = merge(all[i], c)
 		} else {
@@ -78,7 +82,10 @@ func merge(base, over config.Mode) config.Mode {
 	}
 }
 
+var aliases = map[string]string{"bug": Ticket}
+
 func Find(all []config.Mode, name string) (config.Mode, bool) {
+	name = cmp.Or(aliases[name], name)
 	i := slices.IndexFunc(all, func(m config.Mode) bool { return m.Name == name })
 	if i < 0 {
 		return config.Mode{}, false
@@ -141,11 +148,11 @@ func TicketName(ticket string) string {
 	}
 	u, err := url.Parse(ticket)
 	if err != nil || u.Host == "" {
-		return strings.TrimSpace("bug " + ticket)
+		return cmp.Or(ticket, Ticket)
 	}
 	parts := slices.DeleteFunc(strings.Split(u.Path, "/"), func(p string) bool { return p == "" || p == "-" })
 	if i := slices.Index(parts, "issues"); i > 0 && i+1 < len(parts) {
-		return "bug " + parts[i-1] + "#" + parts[i+1]
+		return parts[i-1] + "#" + parts[i+1]
 	}
 	key := u.Query().Get("selectedIssue")
 	if i := slices.IndexFunc(parts, ticketKey.MatchString); i >= 0 {
@@ -154,7 +161,7 @@ func TicketName(ticket string) string {
 	if key == "" && len(parts) > 0 {
 		key = parts[len(parts)-1]
 	}
-	return strings.TrimSpace("bug " + key)
+	return cmp.Or(key, Ticket)
 }
 
 type Spec struct {

@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 
@@ -42,6 +44,43 @@ func TestLookup(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.want, c.name)
+		})
+	}
+}
+
+func TestCompletions(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	for _, d := range []string{"api", "app", "web"} {
+		require.NoError(t, os.Mkdir(filepath.Join(root, d), 0o755))
+	}
+	cases := []struct {
+		name  string
+		input string
+		want  []string
+		tab   string
+	}{
+		{name: "command names", input: "rest", want: []string{"restart ", "restore "}, tab: "restart "},
+		{name: "common command prefix", input: "res", want: []string{"restart ", "restore "}, tab: "rest"},
+		{name: "project add dir", input: "project add api " + root + "/a", want: []string{"project add api " + root + "/api/", "project add api " + root + "/app/"}, tab: "project add api " + root + "/ap"},
+		{name: "project add unique dir", input: "project add web " + root + "/w", want: []string{"project add web " + root + "/web/"}, tab: "project add web " + root + "/web/"},
+		{name: "project add name is not a path", input: "project add " + root + "/w", tab: "project add " + root + "/w"},
+		{name: "new dir", input: "new " + root + "/w", want: []string{"new " + root + "/web/"}, tab: "new " + root + "/web/"},
+		{name: "new dir after agent", input: "new claude " + root + "/w", want: []string{"new claude " + root + "/web/"}, tab: "new claude " + root + "/web/"},
+		{name: "command abbreviation", input: "proj add x " + root + "/w", want: []string{"proj add x " + root + "/web/"}, tab: "proj add x " + root + "/web/"},
+		{name: "no path argument", input: "send " + root + "/w", tab: "send " + root + "/w"},
+		{name: "shell command", input: "!ls " + root + "/w", tab: "!ls " + root + "/w"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			found := completions(tc.input)
+			var values []string
+			for _, f := range found {
+				values = append(values, f.value)
+			}
+			require.Equal(t, tc.want, values)
+			require.Equal(t, tc.tab, completeLine(tc.input, found))
 		})
 	}
 }

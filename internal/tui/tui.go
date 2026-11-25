@@ -449,8 +449,8 @@ func (m model) updatePrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "tab":
-		if c := completions(m.line.Value()); m.prompt == ':' && len(c) > 0 {
-			m.line.SetValue(c[0].name + " ")
+		if m.prompt == ':' {
+			m.line.SetValue(completeLine(m.line.Value(), completions(m.line.Value())))
 			m.line.CursorEnd()
 		}
 		return m, nil

@@ -91,17 +91,65 @@ func lookup(name string) (command, error) {
 	return command{}, fmt.Errorf("ambiguous command %q: %s", name, strings.Join(names, ", "))
 }
 
-func completions(input string) []command {
-	if strings.ContainsAny(input, " !") {
+func completions(input string) []suggestion {
+	name, args, spaced := strings.Cut(input, " ")
+	if !spaced {
+		return commandCompletions(name)
+	}
+	c, err := lookup(name)
+	if err != nil {
 		return nil
 	}
-	var found []command
+	before := strings.Fields(args)
+	token := args[strings.LastIndex(args, " ")+1:]
+	if token != "" {
+		before = before[:len(before)-1]
+	}
+	if !takesPath(c.name, before) {
+		return nil
+	}
+	head := input[:len(input)-len(token)]
+	var found []suggestion
+	for _, d := range matchDirs(token) {
+		found = append(found, suggestion{filepath.Base(d) + "/", "", head + d})
+	}
+	return found
+}
+
+func commandCompletions(name string) []suggestion {
+	var found []suggestion
 	for _, c := range commands() {
-		if strings.HasPrefix(c.name, input) {
-			found = append(found, c)
+		if strings.HasPrefix(c.name, name) {
+			found = append(found, suggestion{c.name, c.args, c.name + " "})
 		}
 	}
 	return found
+}
+
+func takesPath(command string, before []string) bool {
+	switch command {
+	case "new":
+		return len(before) <= 1
+	case "project":
+		return len(before) == 2 && before[0] == "add"
+	}
+	return false
+}
+
+func completeLine(input string, found []suggestion) string {
+	if len(found) == 0 {
+		return input
+	}
+	common := found[0].value
+	for _, f := range found[1:] {
+		for !strings.HasPrefix(f.value, common) {
+			common = common[:len(common)-1]
+		}
+	}
+	if common = strings.ToValidUTF8(common, ""); len(common) > len(input) {
+		return common
+	}
+	return found[0].value
 }
 
 func (m model) execute(line string) (model, tea.Cmd) {

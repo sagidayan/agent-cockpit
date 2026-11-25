@@ -110,8 +110,8 @@ func TestSpawnSteps(t *testing.T) {
 		{"coding in another folder", modes.Code, one, list, "", false, []spawnStep{stepMode, stepProject, stepDir, stepDetails}},
 		{"coding in a git repo", modes.Code, one, list, "api", true, []spawnStep{stepMode, stepProject, stepWorktree, stepDetails}},
 		{"review", modes.Review, two, list, "", false, []spawnStep{stepMode, stepKind, stepURL, stepDetails}},
-		{"bug in a project repo", modes.Bug, one, list, "api", true, []spawnStep{stepMode, stepTicket, stepProject, stepWorktree, stepDetails}},
-		{"bug without projects", modes.Bug, two, nil, "", false, []spawnStep{stepMode, stepKind, stepTicket, stepDir, stepDetails}},
+		{"ticket in a project repo", modes.Ticket, one, list, "api", true, []spawnStep{stepMode, stepTicket, stepProject, stepWorktree, stepDetails}},
+		{"ticket without projects", modes.Ticket, two, nil, "", false, []spawnStep{stepMode, stepKind, stepTicket, stepDir, stepDetails}},
 		{"chat with one agent", modes.Chat, one, list, "", false, []spawnStep{stepMode, stepDetails}},
 	}
 	for _, tc := range cases {
@@ -168,11 +168,11 @@ func TestSpawnWizard(t *testing.T) {
 	require.Equal(t, []string{"claude", root + "/api", "api"}, []string{r.Kind, r.Dir, r.Name})
 }
 
-func TestSpawnWizardBug(t *testing.T) {
+func TestSpawnWizardTicket(t *testing.T) {
 	t.Parallel()
 	root := t.TempDir()
 	f := testForm([]string{"claude"}, nil, root)
-	f.mode = slices.IndexFunc(f.modes, func(m config.Mode) bool { return m.Name == modes.Bug })
+	f.mode = slices.IndexFunc(f.modes, func(m config.Mode) bool { return m.Name == modes.Ticket })
 	f, _ = f.next()
 	require.Equal(t, stepTicket, f.step)
 	f, _ = f.next()
@@ -183,12 +183,12 @@ func TestSpawnWizardBug(t *testing.T) {
 	require.Equal(t, stepDir, f.step)
 	f, _ = f.next()
 	require.Equal(t, stepDetails, f.step)
-	require.Equal(t, "defaults to bug SP-7", f.name.Placeholder)
+	require.Equal(t, "defaults to SP-7", f.name.Placeholder)
 
 	r, err := f.request()
 	require.NoError(t, err)
-	require.Equal(t, []string{root, "bug SP-7", modes.Bug}, []string{r.Dir, r.Name, r.Mode})
-	require.Contains(t, r.Prompt, "Fix the bug described in SP-7")
+	require.Equal(t, []string{root, "SP-7", modes.Ticket}, []string{r.Dir, r.Name, r.Mode})
+	require.Contains(t, r.Prompt, "Work on the ticket SP-7")
 }
 
 func TestSpawnWizardDirNavigation(t *testing.T) {
@@ -212,6 +212,9 @@ func TestSpawnWizardDirNavigation(t *testing.T) {
 	f = press(f, tea.KeyLeft)
 	require.Equal(t, root+"/", f.dir.Value())
 	require.True(t, f.dismissible())
+
+	f = press(f, tea.KeyTab)
+	require.Equal(t, root+"/api/", f.dir.Value())
 }
 
 func TestSpawnWizardWorktree(t *testing.T) {
